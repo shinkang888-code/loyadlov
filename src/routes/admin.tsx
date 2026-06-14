@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   Search,
   Users,
@@ -623,9 +623,9 @@ function ScheduleTab({ client }: { client: Client }) {
           {days.map((d) => <div key={d}>{d}</div>)}
         </div>
         {slots.map((s) => (
-          <>
-            <div key={`l${s}`} className="text-xs text-muted-foreground self-center">{s}:00</div>
-            <div key={`r${s}`} className="grid grid-cols-7 gap-2">
+          <Fragment key={s}>
+            <div className="text-xs text-muted-foreground self-center">{s}:00</div>
+            <div className="grid grid-cols-7 gap-2">
               {days.map((d) => {
                 const filled = (s + d.charCodeAt(0)) % 4 === 0;
                 return (
@@ -642,7 +642,7 @@ function ScheduleTab({ client }: { client: Client }) {
                 );
               })}
             </div>
-          </>
+          </Fragment>
         ))}
       </div>
     </div>
