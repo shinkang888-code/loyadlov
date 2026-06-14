@@ -90,7 +90,7 @@ function Nav() {
             <a href="/admin" className="hover:text-foreground transition">Admin</a>
           </nav>
           <a
-            href="#cta"
+            href="/admin"
             className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-medium text-primary-foreground shadow-navy hover:opacity-90 transition"
           >
             시작하기 <ArrowRight className="size-3.5" />
@@ -551,7 +551,7 @@ function CTA() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <a
-                href="#"
+                href="/admin"
                 className="inline-flex items-center gap-2 rounded-full bg-accent-gradient px-6 py-3.5 text-sm font-bold text-accent-foreground shadow-crimson hover:scale-[1.02] transition"
               >
                 무료로 시작하기 <Rocket className="size-4" />
