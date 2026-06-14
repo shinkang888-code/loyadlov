@@ -87,6 +87,7 @@ function Nav() {
             <a href="#showcase" className="hover:text-foreground transition">사례</a>
             <a href="#workflow" className="hover:text-foreground transition">작동방식</a>
             <a href="#pricing" className="hover:text-foreground transition">요금</a>
+            <a href="/admin" className="hover:text-foreground transition">Admin</a>
           </nav>
           <a
             href="#cta"
