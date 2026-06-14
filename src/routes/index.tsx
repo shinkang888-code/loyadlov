@@ -13,7 +13,6 @@ import {
   Check,
   Workflow,
   Cloud,
-  Wand2,
   Star,
 } from "lucide-react";
 import hero from "@/assets/hero.jpg";
@@ -588,5 +587,3 @@ function Footer() {
     </footer>
   );
 }
-
-<Wand2 className="hidden" />
