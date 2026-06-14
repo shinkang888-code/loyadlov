@@ -90,7 +90,7 @@ function Nav() {
             <a href="/admin" className="hover:text-foreground transition">Admin</a>
           </nav>
           <a
-            href="#cta"
+            href="/admin"
             className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-medium text-primary-foreground shadow-navy hover:opacity-90 transition"
           >
             시작하기 <ArrowRight className="size-3.5" />
