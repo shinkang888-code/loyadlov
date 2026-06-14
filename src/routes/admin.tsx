@@ -1,0 +1,827 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Fragment, useMemo, useState } from "react";
+import {
+  Search,
+  Users,
+  LayoutDashboard,
+  Wand2,
+  Send,
+  Cloud,
+  ShieldCheck,
+  Settings,
+  Bell,
+  Plus,
+  Sparkles,
+  Image as ImageIcon,
+  Type,
+  Film,
+  Instagram,
+  Music2,
+  MessageCircle,
+  Globe,
+  Check,
+  Loader2,
+  Copy,
+  RefreshCw,
+  ArrowLeft,
+  ChevronRight,
+  Calendar,
+  Hash,
+  Bot,
+  Layers,
+  Activity,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+} from "lucide-react";
+import logo from "@/assets/loyard-logo.jpg.asset.json";
+import showcase1 from "@/assets/showcase-1.jpg";
+import showcase2 from "@/assets/showcase-2.jpg";
+import showcase3 from "@/assets/showcase-3.jpg";
+
+export const Route = createFileRoute("/admin")({
+  head: () => ({
+    meta: [
+      { title: "Admin Console — 로이어드 Loyard" },
+      { name: "description", content: "로이어드 운영 크루 전용 AI 콘트롤 센터" },
+    ],
+  }),
+  component: AdminConsole,
+});
+
+/* ---------------- Mock data ---------------- */
+type Client = {
+  uid: string;
+  store: string;
+  industry: string;
+  tone: string[];
+  channels: ("ig" | "tt" | "nv" | "kk")[];
+  avatar: string;
+  status: "active" | "pending" | "needs-auth";
+  thisMonth: number;
+  plan: "Standard" | "Premium" | "Enterprise";
+};
+
+const CLIENTS: Client[] = [
+  { uid: "ZA-2026-0917", store: "미나리삼겹살 성수점", industry: "요식업 · 한식", tone: ["감성적인", "신뢰감"], channels: ["ig", "nv", "kk"], avatar: showcase2, status: "active", thisMonth: 18, plan: "Premium" },
+  { uid: "ZA-2026-0822", store: "카페 안온", industry: "F&B · 카페", tone: ["미니멀", "차분한"], channels: ["ig", "tt"], avatar: showcase1, status: "needs-auth", thisMonth: 12, plan: "Standard" },
+  { uid: "ZA-2026-0731", store: "베어 헤어살롱", industry: "뷰티 · 헤어", tone: ["트렌디", "활기찬"], channels: ["ig", "tt", "nv"], avatar: showcase3, status: "active", thisMonth: 24, plan: "Premium" },
+  { uid: "ZA-2026-0688", store: "도토리 베이커리", industry: "F&B · 베이커리", tone: ["따뜻한", "감성적인"], channels: ["ig", "kk"], avatar: showcase1, status: "pending", thisMonth: 4, plan: "Standard" },
+  { uid: "ZA-2026-0512", store: "온유필라테스", industry: "헬스 · 필라테스", tone: ["전문적", "차분한"], channels: ["ig", "nv"], avatar: showcase3, status: "active", thisMonth: 9, plan: "Standard" },
+];
+
+const CHANNEL_META = {
+  ig: { name: "Instagram", Icon: Instagram, color: "oklch(0.55 0.18 18)" },
+  tt: { name: "TikTok", Icon: Music2, color: "oklch(0.22 0.05 265)" },
+  nv: { name: "Naver", Icon: Globe, color: "oklch(0.55 0.16 150)" },
+  kk: { name: "Kakao", Icon: MessageCircle, color: "oklch(0.78 0.16 90)" },
+} as const;
+
+const SAMPLE_TAGS = [
+  ["#미나리삼겹살", "#성수맛집", "#성수동회식", "#삼겹살", "#감성식당"],
+  ["#오늘의메뉴", "#성수동", "#서울맛집", "#회식추천", "#소주안주"],
+  ["#삼겹살맛집", "#수요미식회", "#성수핫플", "#데이트맛집", "#회식하기좋은곳"],
+  ["#한식주점", "#감성주점", "#성수동맛집추천", "#야장맛집", "#친구랑가기좋은곳"],
+  ["#로이어드", "#매일새로운피드", "#사장님의일상", "#매장스토리", "#오늘의장사"],
+];
+
+const SAMPLE_BODY = `[성수동 #감성식당]
+
+오늘도 새벽시장에서 직접 골라온 1++ 한돈,
+은은한 미나리 향을 입혀 두툼하게 굽습니다.
+
+지글지글 익어가는 소리,
+한 점 들어 입에 넣는 순간,
+오늘 하루의 피로가 사르르 풀려요.
+
+🍽 오늘의 운영 16:00 — 24:00
+📍 서울 성수동 골목 안쪽
+📞 예약 환영`;
+
+/* ---------------- Component ---------------- */
+function AdminConsole() {
+  const [selectedUid, setSelectedUid] = useState<string>(CLIENTS[0].uid);
+  const [query, setQuery] = useState("");
+  const [nav, setNav] = useState<"workspace" | "queue" | "channels" | "members" | "analytics" | "settings">("workspace");
+
+  const filtered = useMemo(
+    () =>
+      CLIENTS.filter(
+        (c) =>
+          !query ||
+          c.store.toLowerCase().includes(query.toLowerCase()) ||
+          c.uid.toLowerCase().includes(query.toLowerCase()),
+      ),
+    [query],
+  );
+  const active = CLIENTS.find((c) => c.uid === selectedUid) ?? CLIENTS[0];
+
+  return (
+    <div className="min-h-screen bg-secondary/50 text-foreground flex">
+      <SideNav nav={nav} setNav={setNav} />
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopBar query={query} setQuery={setQuery} active={active} />
+        <div className="flex-1 flex min-h-0">
+          <ClientList clients={filtered} selectedUid={selectedUid} onSelect={setSelectedUid} />
+          <Workspace client={active} />
+          <AiPanel client={active} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Side nav ---------------- */
+function SideNav({
+  nav,
+  setNav,
+}: {
+  nav: string;
+  setNav: (n: any) => void;
+}) {
+  const items = [
+    { id: "workspace", label: "워크스페이스", Icon: LayoutDashboard },
+    { id: "queue", label: "생성 큐", Icon: Layers, badge: 7 },
+    { id: "channels", label: "채널 세션", Icon: ShieldCheck },
+    { id: "members", label: "회원 관리", Icon: Users },
+    { id: "analytics", label: "성과 리포트", Icon: Activity },
+    { id: "settings", label: "설정", Icon: Settings },
+  ];
+  return (
+    <aside className="w-[240px] shrink-0 bg-card border-r border-border flex flex-col">
+      <div className="px-5 py-5 border-b border-border flex items-center gap-2.5">
+        <img src={logo.url} alt="로이어드" className="size-9 rounded-xl ring-1 ring-primary/15 shadow-soft" />
+        <div className="leading-tight">
+          <div className="font-display font-bold text-sm">로이어드</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Admin Console</div>
+        </div>
+      </div>
+
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        {items.map((it) => {
+          const activeNav = nav === it.id;
+          return (
+            <button
+              key={it.id}
+              onClick={() => setNav(it.id)}
+              className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition ${
+                activeNav
+                  ? "bg-brand text-primary-foreground shadow-soft"
+                  : "text-foreground/70 hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <it.Icon className="size-4" />
+              <span className="flex-1 text-left">{it.label}</span>
+              {it.badge && (
+                <span
+                  className={`text-[10px] font-semibold rounded-full px-1.5 py-0.5 ${
+                    activeNav ? "bg-white/20 text-white" : "bg-accent-gradient text-accent-foreground"
+                  }`}
+                >
+                  {it.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="p-3 border-t border-border">
+        <Link
+          to="/"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+        >
+          <ArrowLeft className="size-3.5" />
+          홍보 사이트로 이동
+        </Link>
+        <div className="mt-3 p-3 rounded-2xl bg-secondary border border-border">
+          <div className="flex items-center gap-2">
+            <div className="size-8 rounded-full bg-brand text-primary-foreground grid place-items-center text-xs font-bold">JD</div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold truncate">정도현 매니저</div>
+              <div className="text-[10px] text-muted-foreground truncate">crew@loyard.kr</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+/* ---------------- Top bar ---------------- */
+function TopBar({
+  query,
+  setQuery,
+  active,
+}: {
+  query: string;
+  setQuery: (v: string) => void;
+  active: Client;
+}) {
+  return (
+    <header className="h-16 shrink-0 bg-card border-b border-border flex items-center gap-4 px-5">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span>Crew Console</span>
+        <ChevronRight className="size-3" />
+        <span className="text-foreground font-medium">{active.store}</span>
+        <span className="text-muted-foreground/70 font-mono">#{active.uid}</span>
+      </div>
+
+      <div className="ml-auto flex items-center gap-3 flex-1 max-w-md">
+        <div className="relative flex-1">
+          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="UID 또는 점포명 검색 (예: #ZA-2026-0917)"
+            className="w-full h-10 pl-9 pr-3 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition"
+          />
+        </div>
+      </div>
+
+      <button className="relative size-10 grid place-items-center rounded-xl bg-secondary border border-border hover:bg-secondary/70 transition">
+        <Bell className="size-4" />
+        <span className="absolute top-2 right-2 size-1.5 rounded-full bg-accent" />
+      </button>
+      <button className="hidden md:inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-brand text-primary-foreground text-sm font-semibold shadow-navy hover:opacity-90 transition">
+        <Plus className="size-4" />
+        새 콘텐츠
+      </button>
+    </header>
+  );
+}
+
+/* ---------------- Client list ---------------- */
+function ClientList({
+  clients,
+  selectedUid,
+  onSelect,
+}: {
+  clients: Client[];
+  selectedUid: string;
+  onSelect: (uid: string) => void;
+}) {
+  return (
+    <div className="w-[300px] shrink-0 bg-card border-r border-border flex flex-col">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">담당 회원</div>
+          <div className="text-sm font-semibold mt-0.5">{clients.length}개 활성 워크스페이스</div>
+        </div>
+        <button className="size-8 grid place-items-center rounded-lg hover:bg-secondary transition">
+          <RefreshCw className="size-3.5 text-muted-foreground" />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        {clients.map((c) => {
+          const isActive = c.uid === selectedUid;
+          return (
+            <button
+              key={c.uid}
+              onClick={() => onSelect(c.uid)}
+              className={`w-full text-left p-3 rounded-2xl border transition flex gap-3 ${
+                isActive
+                  ? "bg-primary/[0.05] border-primary/30 shadow-soft"
+                  : "border-transparent hover:bg-secondary"
+              }`}
+            >
+              <img src={c.avatar} alt="" className="size-12 rounded-xl object-cover shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-semibold truncate">{c.store}</div>
+                  <StatusDot status={c.status} />
+                </div>
+                <div className="text-[11px] font-mono text-muted-foreground mt-0.5">#{c.uid}</div>
+                <div className="text-[11px] text-muted-foreground mt-1 truncate">{c.industry}</div>
+                <div className="mt-2 flex items-center gap-1.5">
+                  {c.channels.map((ch) => {
+                    const M = CHANNEL_META[ch];
+                    return (
+                      <div key={ch} className="size-5 rounded-md bg-secondary grid place-items-center" title={M.name}>
+                        <M.Icon className="size-3 text-foreground/70" />
+                      </div>
+                    );
+                  })}
+                  <span className="ml-auto text-[10px] text-muted-foreground">{c.thisMonth}건/월</span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StatusDot({ status }: { status: Client["status"] }) {
+  const cfg = {
+    active: { color: "bg-emerald-500", label: "정상" },
+    pending: { color: "bg-amber-500", label: "대기" },
+    "needs-auth": { color: "bg-accent", label: "재인증 필요" },
+  }[status];
+  return <span className={`size-1.5 rounded-full ${cfg.color}`} title={cfg.label} />;
+}
+
+/* ---------------- Workspace (center) ---------------- */
+function Workspace({ client }: { client: Client }) {
+  const [tab, setTab] = useState<"text" | "image" | "video" | "schedule">("text");
+  const [body, setBody] = useState(SAMPLE_BODY);
+  const [keyword, setKeyword] = useState("미나리삼겹살 신메뉴 출시");
+
+  return (
+    <main className="flex-1 min-w-0 overflow-y-auto">
+      {/* Header */}
+      <div className="p-6 border-b border-border bg-card">
+        <div className="flex items-start gap-4">
+          <img src={client.avatar} alt="" className="size-16 rounded-2xl object-cover shadow-soft" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="font-display text-2xl font-bold">{client.store}</h1>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent-gradient text-accent-foreground uppercase tracking-wider">
+                {client.plan}
+              </span>
+            </div>
+            <div className="text-xs font-mono text-muted-foreground mt-1">#{client.uid}</div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <span className="text-[11px] px-2 py-1 rounded-md bg-secondary border border-border">{client.industry}</span>
+              {client.tone.map((t) => (
+                <span key={t} className="text-[11px] px-2 py-1 rounded-md bg-primary/[0.06] border border-primary/20 text-primary">
+                  #{t}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="hidden md:grid grid-cols-3 gap-3 text-center">
+            <Stat label="이번 달" value={client.thisMonth} suffix="건" />
+            <Stat label="발행 성공률" value={98} suffix="%" />
+            <Stat label="평균 노출" value="12.4k" />
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="mt-6 flex items-center gap-1 bg-secondary p-1 rounded-xl w-fit">
+          {[
+            { id: "text", label: "본문 + 해시태그", Icon: Type },
+            { id: "image", label: "이미지", Icon: ImageIcon },
+            { id: "video", label: "릴스 / 영상", Icon: Film },
+            { id: "schedule", label: "스케줄", Icon: Calendar },
+          ].map((t) => {
+            const isOn = tab === (t.id as any);
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id as any)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition ${
+                  isOn ? "bg-card text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <t.Icon className="size-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="p-6 space-y-5">
+        {tab === "text" && <TextTab body={body} setBody={setBody} keyword={keyword} setKeyword={setKeyword} />}
+        {tab === "image" && <ImageTab client={client} />}
+        {tab === "video" && <VideoTab />}
+        {tab === "schedule" && <ScheduleTab client={client} />}
+
+        <PublishBar client={client} />
+      </div>
+    </main>
+  );
+}
+
+function Stat({ label, value, suffix }: { label: string; value: number | string; suffix?: string }) {
+  return (
+    <div className="px-4 py-2 rounded-xl bg-secondary border border-border min-w-[88px]">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="font-display font-bold text-lg leading-tight">
+        {value}
+        {suffix && <span className="text-xs font-medium text-muted-foreground ml-0.5">{suffix}</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ----- Text tab ----- */
+function TextTab({
+  body,
+  setBody,
+  keyword,
+  setKeyword,
+}: {
+  body: string;
+  setBody: (v: string) => void;
+  keyword: string;
+  setKeyword: (v: string) => void;
+}) {
+  const [generating, setGenerating] = useState(false);
+  const [tagSetIdx, setTagSetIdx] = useState(0);
+
+  function regen() {
+    setGenerating(true);
+    setTimeout(() => {
+      setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length);
+      setBody(SAMPLE_BODY + `\n\n[키워드: ${keyword}]`);
+      setGenerating(false);
+    }, 900);
+  }
+
+  return (
+    <div className="grid lg:grid-cols-5 gap-5">
+      <div className="lg:col-span-3 rounded-2xl bg-card border border-border p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Type className="size-4 text-primary" /> 본문 에디터
+          </div>
+          <button
+            onClick={regen}
+            disabled={generating}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand text-primary-foreground text-xs font-semibold shadow-soft hover:opacity-90 transition disabled:opacity-60"
+          >
+            {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />}
+            {generating ? "생성 중…" : "AI 다시 생성"}
+          </button>
+        </div>
+
+        <label className="text-[11px] uppercase tracking-widest text-muted-foreground">핵심 키워드</label>
+        <input
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          className="mt-1 w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+        />
+
+        <label className="block mt-4 text-[11px] uppercase tracking-widest text-muted-foreground">본문</label>
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={14}
+          className="mt-1 w-full p-3 rounded-xl bg-secondary border border-border text-sm leading-relaxed font-sans focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 resize-none"
+        />
+        <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>{body.length} / 2200자</span>
+          <button className="inline-flex items-center gap-1 hover:text-foreground transition">
+            <Copy className="size-3" /> 클립보드 복사
+          </button>
+        </div>
+      </div>
+
+      <div className="lg:col-span-2 space-y-5">
+        <div className="rounded-2xl bg-card border border-border p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Hash className="size-4 text-crimson" /> 해시태그 5조합
+            </div>
+            <button
+              onClick={() => setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length)}
+              className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition"
+            >
+              <RefreshCw className="size-3" /> 셔플
+            </button>
+          </div>
+          <div className="space-y-2">
+            {SAMPLE_TAGS.map((set, i) => (
+              <div
+                key={i}
+                className={`rounded-xl border p-2.5 cursor-pointer transition ${
+                  i === tagSetIdx ? "bg-primary/[0.05] border-primary/30" : "bg-secondary border-border hover:bg-secondary/70"
+                }`}
+                onClick={() => setTagSetIdx(i)}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">조합 {i + 1}</span>
+                  {i === tagSetIdx && <Check className="size-3 text-primary" />}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {set.map((t) => (
+                    <span key={t} className="text-[11px] text-foreground/80">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-brand text-primary-foreground p-5 shadow-navy">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-white/70">
+            <Bot className="size-3.5" /> AI 톤 분석
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-white/90">
+            본문 톤이 <strong className="text-white">감성적 · 신뢰감</strong> 가이드라인과 <strong className="text-white">96%</strong> 일치합니다.
+            "지글지글" 같은 의성어가 몰입도를 높였습니다.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----- Image tab ----- */
+function ImageTab({ client }: { client: Client }) {
+  const templates = [
+    { id: "moody", label: "감성 식당", img: client.avatar },
+    { id: "studio", label: "스튜디오 컷", img: showcase1 },
+    { id: "lifestyle", label: "라이프스타일", img: showcase3 },
+  ];
+  const [picked, setPicked] = useState("moody");
+  return (
+    <div className="grid lg:grid-cols-5 gap-5">
+      <div className="lg:col-span-3 rounded-2xl bg-card border border-border p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold mb-4">
+          <ImageIcon className="size-4 text-primary" /> 미디어 프리뷰
+        </div>
+        <div className="relative rounded-2xl overflow-hidden border border-border aspect-[4/5] bg-secondary">
+          <img src={templates.find((t) => t.id === picked)?.img} alt="" className="w-full h-full object-cover" />
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-card/90 backdrop-blur rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-soft">
+            <img src={logo.url} className="size-4 rounded-md" alt="" /> 로이어드 워터마크
+          </div>
+          <div className="absolute bottom-0 inset-x-0 p-5 bg-gradient-to-t from-black/70 to-transparent text-white">
+            <div className="text-[11px] uppercase tracking-widest opacity-80">오늘의 메뉴</div>
+            <div className="font-display text-xl font-bold leading-tight mt-0.5">{client.store}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="lg:col-span-2 space-y-5">
+        <div className="rounded-2xl bg-card border border-border p-5">
+          <div className="text-sm font-semibold mb-3">템플릿</div>
+          <div className="grid grid-cols-3 gap-2">
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setPicked(t.id)}
+                className={`relative aspect-square rounded-xl overflow-hidden border-2 transition ${
+                  picked === t.id ? "border-primary" : "border-transparent hover:border-border"
+                }`}
+              >
+                <img src={t.img} alt="" className="w-full h-full object-cover" />
+                <span className="absolute bottom-0 inset-x-0 text-[10px] font-medium text-white bg-black/50 py-0.5">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-card border border-border p-5">
+          <div className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Layers className="size-4 text-crimson" /> 레이어
+          </div>
+          <div className="space-y-2 text-sm">
+            {[
+              { name: "배경 이미지", visible: true },
+              { name: "로고 워터마크", visible: true },
+              { name: "헤드라인 텍스트", visible: true },
+              { name: "가격 스티커", visible: false },
+            ].map((l) => (
+              <div key={l.name} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary border border-border">
+                <span className={l.visible ? "" : "text-muted-foreground line-through"}>{l.name}</span>
+                <span className={`size-2 rounded-full ${l.visible ? "bg-emerald-500" : "bg-muted-foreground/30"}`} />
+              </div>
+            ))}
+          </div>
+          <button className="mt-3 w-full h-9 rounded-lg bg-secondary border border-dashed border-border text-xs font-medium text-muted-foreground hover:text-foreground transition flex items-center justify-center gap-1">
+            <Plus className="size-3.5" /> 레이어 추가
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----- Video tab ----- */
+function VideoTab() {
+  return (
+    <div className="rounded-2xl bg-card border border-border p-10 text-center">
+      <Film className="size-10 mx-auto text-muted-foreground mb-3" />
+      <div className="font-display font-semibold">릴스 / 쇼츠 생성기</div>
+      <p className="text-sm text-muted-foreground mt-1">Sora · Runway 템플릿이 곧 연결됩니다.</p>
+    </div>
+  );
+}
+
+/* ----- Schedule tab ----- */
+function ScheduleTab({ client }: { client: Client }) {
+  const days = ["월", "화", "수", "목", "금", "토", "일"];
+  const slots = [9, 12, 15, 18, 21];
+  return (
+    <div className="rounded-2xl bg-card border border-border p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-sm font-semibold flex items-center gap-2">
+          <Calendar className="size-4 text-primary" /> {client.store} 이번 주 발행 스케줄
+        </div>
+        <button className="text-xs text-primary hover:underline">자동 분배</button>
+      </div>
+      <div className="grid grid-cols-[60px_1fr] gap-2">
+        <div />
+        <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-muted-foreground">
+          {days.map((d) => <div key={d}>{d}</div>)}
+        </div>
+        {slots.map((s) => (
+          <Fragment key={s}>
+            <div className="text-xs text-muted-foreground self-center">{s}:00</div>
+            <div className="grid grid-cols-7 gap-2">
+              {days.map((d) => {
+                const filled = (s + d.charCodeAt(0)) % 4 === 0;
+                return (
+                  <div
+                    key={d}
+                    className={`h-10 rounded-lg border ${
+                      filled
+                        ? "bg-primary/[0.08] border-primary/30 grid place-items-center"
+                        : "bg-secondary border-border border-dashed"
+                    }`}
+                  >
+                    {filled && <Instagram className="size-3.5 text-primary" />}
+                  </div>
+                );
+              })}
+            </div>
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ----- Publish bar ----- */
+function PublishBar({ client }: { client: Client }) {
+  const [saved, setSaved] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [published, setPublished] = useState(false);
+  return (
+    <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-4 bg-card/95 backdrop-blur border-t border-border flex flex-wrap items-center gap-3">
+      <div className="text-xs text-muted-foreground mr-auto">
+        구글드라이브 경로: <span className="font-mono text-foreground/80">/{client.uid}_{client.store}/2026-06_콘텐츠/</span>
+      </div>
+      <button
+        onClick={() => {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 1800);
+        }}
+        className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-secondary border border-border text-sm font-medium hover:bg-secondary/70 transition"
+      >
+        {saved ? <CheckCircle2 className="size-4 text-emerald-500" /> : <Cloud className="size-4" />}
+        {saved ? "드라이브 저장됨" : "구글드라이브 저장"}
+      </button>
+      <button
+        onClick={() => {
+          setPublishing(true);
+          setTimeout(() => {
+            setPublishing(false);
+            setPublished(true);
+            setTimeout(() => setPublished(false), 2200);
+          }, 1400);
+        }}
+        className="inline-flex items-center gap-1.5 h-10 px-5 rounded-xl bg-accent-gradient text-accent-foreground text-sm font-bold shadow-crimson hover:scale-[1.02] transition"
+      >
+        {publishing ? <Loader2 className="size-4 animate-spin" /> : published ? <CheckCircle2 className="size-4" /> : <Send className="size-4" />}
+        {publishing ? "발행 중…" : published ? "발행 완료" : "피드 발행"}
+      </button>
+    </div>
+  );
+}
+
+/* ---------------- Right AI panel ---------------- */
+function AiPanel({ client }: { client: Client }) {
+  return (
+    <aside className="w-[340px] shrink-0 bg-card border-l border-border flex flex-col">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <div className="size-8 rounded-xl bg-accent-gradient grid place-items-center shadow-crimson">
+          <Sparkles className="size-4 text-accent-foreground" />
+        </div>
+        <div>
+          <div className="text-sm font-semibold">AI 보조 패널</div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Loyard Copilot</div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Channels */}
+        <Card title="채널 세션 상태" icon={<ShieldCheck className="size-4 text-primary" />}>
+          <div className="space-y-2">
+            {client.channels.map((ch) => {
+              const M = CHANNEL_META[ch];
+              const valid = ch !== "tt" || client.status !== "needs-auth";
+              return (
+                <div key={ch} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary border border-border">
+                  <div className="size-7 rounded-md bg-card grid place-items-center">
+                    <M.Icon className="size-3.5 text-foreground/70" />
+                  </div>
+                  <span className="text-xs font-medium flex-1">{M.name}</span>
+                  {valid ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                      <Check className="size-3" /> 정상
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent">
+                      <AlertCircle className="size-3" /> 재인증 필요
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {client.status === "needs-auth" && (
+            <button className="mt-3 w-full h-9 rounded-lg bg-accent-gradient text-accent-foreground text-xs font-bold shadow-crimson">
+              알림톡으로 재인증 요청
+            </button>
+          )}
+        </Card>
+
+        {/* Queue */}
+        <Card title="생성 큐 (Redis)" icon={<Layers className="size-4 text-crimson" />} extra="7 작업">
+          <div className="space-y-2">
+            {[
+              { t: "본문 + 태그 생성", s: "done" },
+              { t: "메인 이미지 (SD 1024)", s: "running", p: 64 },
+              { t: "릴스 15초 (Sora)", s: "queued" },
+              { t: "구글드라이브 업로드", s: "queued" },
+            ].map((q) => (
+              <div key={q.t} className="px-3 py-2 rounded-lg bg-secondary border border-border">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium">{q.t}</span>
+                  <QueueBadge s={q.s as any} />
+                </div>
+                {q.s === "running" && (
+                  <div className="mt-1.5 h-1 rounded-full bg-card overflow-hidden">
+                    <div className="h-full bg-brand" style={{ width: `${q.p}%` }} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Activity */}
+        <Card title="최근 활동" icon={<Activity className="size-4 text-primary" />}>
+          <ul className="space-y-3 text-xs">
+            {[
+              { i: <CheckCircle2 className="size-3.5 text-emerald-500" />, t: "인스타 피드 1건 발행 완료", time: "방금" },
+              { i: <Bot className="size-3.5 text-primary" />, t: "AI가 본문 5개 변형 생성", time: "4분 전" },
+              { i: <Cloud className="size-3.5 text-primary" />, t: "구글드라이브 백업 완료 · 12MB", time: "9분 전" },
+              { i: <AlertCircle className="size-3.5 text-accent" />, t: "TikTok 세션 만료 감지", time: "32분 전" },
+              { i: <Clock className="size-3.5 text-muted-foreground" />, t: "예약 발행 등록 · 내일 18:00", time: "1시간 전" },
+            ].map((a, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <div className="mt-0.5">{a.i}</div>
+                <div className="flex-1">
+                  <div className="text-foreground/90">{a.t}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{a.time}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+    </aside>
+  );
+}
+
+function Card({
+  title,
+  icon,
+  extra,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  extra?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl bg-secondary/60 border border-border p-4">
+      <div className="flex items-center gap-2 mb-3">
+        {icon}
+        <span className="text-xs font-semibold">{title}</span>
+        {extra && <span className="ml-auto text-[10px] font-mono text-muted-foreground">{extra}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function QueueBadge({ s }: { s: "done" | "running" | "queued" }) {
+  if (s === "done")
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+        <Check className="size-3" /> 완료
+      </span>
+    );
+  if (s === "running")
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
+        <Loader2 className="size-3 animate-spin" /> 진행중
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+      <Clock className="size-3" /> 대기
+    </span>
+  );
+}
