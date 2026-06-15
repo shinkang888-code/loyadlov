@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { Fragment, useMemo, useState } from "react";
 import {
   Search,
@@ -39,7 +40,7 @@ import showcase1 from "@/assets/showcase-1.jpg";
 import showcase2 from "@/assets/showcase-2.jpg";
 import showcase3 from "@/assets/showcase-3.jpg";
 
-export const Route = createFileRoute("/admin")({
+export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
       { title: "Admin Console — 로이어드 Loyard" },
@@ -246,6 +247,12 @@ function TopBar({
       <button className="hidden md:inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-brand text-primary-foreground text-sm font-semibold shadow-navy hover:opacity-90 transition">
         <Plus className="size-4" />
         새 콘텐츠
+      </button>
+      <button
+        onClick={() => void supabase.auth.signOut().then(() => { window.location.href = "/"; })}
+        className="hidden sm:inline-flex items-center h-10 px-3 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition"
+      >
+        로그아웃
       </button>
     </header>
   );
