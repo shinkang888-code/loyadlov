@@ -247,6 +247,12 @@ function TopBar({
         <Plus className="size-4" />
         새 콘텐츠
       </button>
+      <button
+        onClick={() => void supabase.auth.signOut().then(() => { window.location.href = "/"; })}
+        className="hidden sm:inline-flex items-center h-10 px-3 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition"
+      >
+        로그아웃
+      </button>
     </header>
   );
 }
