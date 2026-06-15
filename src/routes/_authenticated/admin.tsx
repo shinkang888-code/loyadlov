@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { generateContent } from "@/lib/ai.functions";
 import { Fragment, useMemo, useState } from "react";
 import {
   Search,
@@ -398,7 +400,9 @@ function Workspace({ client }: { client: Client }) {
 
       {/* Body */}
       <div className="p-6 space-y-5">
-        {tab === "text" && <TextTab body={body} setBody={setBody} keyword={keyword} setKeyword={setKeyword} />}
+        {tab === "text" && (
+          <TextTab body={body} setBody={setBody} keyword={keyword} setKeyword={setKeyword} client={client} />
+        )}
         {tab === "image" && <ImageTab client={client} />}
         {tab === "video" && <VideoTab />}
         {tab === "schedule" && <ScheduleTab client={client} />}
@@ -427,22 +431,43 @@ function TextTab({
   setBody,
   keyword,
   setKeyword,
+  client,
 }: {
   body: string;
   setBody: (v: string) => void;
   keyword: string;
   setKeyword: (v: string) => void;
+  client: Client;
 }) {
   const [generating, setGenerating] = useState(false);
   const [tagSetIdx, setTagSetIdx] = useState(0);
+  const [aiTags, setAiTags] = useState<string[] | null>(null);
+  const [aiError, setAiError] = useState<string>("");
+  const generate = useServerFn(generateContent);
 
-  function regen() {
+  async function regen() {
     setGenerating(true);
-    setTimeout(() => {
+    setAiError("");
+    try {
+      const res = await generate({
+        data: {
+          store: client.store,
+          industry: client.industry,
+          tone: client.tone,
+          keyword,
+          channel: "instagram",
+        },
+      });
+      if (res.body) setBody(res.body);
+      if (res.hashtags?.length) setAiTags(res.hashtags);
+    } catch (e) {
+      setAiError("AI 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      // fallback to sample
       setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length);
       setBody(SAMPLE_BODY + `\n\n[키워드: ${keyword}]`);
+    } finally {
       setGenerating(false);
-    }, 900);
+    }
   }
 
   return (
