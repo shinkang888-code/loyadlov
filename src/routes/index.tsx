@@ -17,6 +17,7 @@ import {
   Cloud,
   Star,
 } from "lucide-react";
+import { ContactForm } from "@/components/ContactForm";
 import hero from "@/assets/hero.jpg";
 import showcase1 from "@/assets/showcase-1.jpg";
 import showcase2 from "@/assets/showcase-2.jpg";
@@ -554,36 +555,44 @@ function Pricing() {
 function CTA() {
   return (
     <section id="cta" className="py-28 md:py-36">
-      <div className="mx-auto max-w-5xl px-6">
-        <div className="relative rounded-[2.5rem] overflow-hidden bg-brand p-12 md:p-20 text-center shadow-navy">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="relative rounded-[2.5rem] overflow-hidden bg-brand p-10 md:p-16 shadow-navy">
           <div className="absolute inset-0 grid-bg opacity-15" />
           <div className="absolute -top-24 -right-24 size-96 rounded-full bg-accent/30 blur-3xl" />
           <div className="absolute -bottom-24 -left-24 size-96 rounded-full bg-white/10 blur-3xl" />
-          <div className="relative">
-            <div className="inline-flex items-center justify-center mb-6">
-              <LogoMark className="size-14 ring-2 ring-white/30" />
+          <div className="relative grid lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <div className="inline-flex items-center justify-center mb-6">
+                <LogoMark className="size-14 ring-2 ring-white/30" />
+              </div>
+              <h2 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground tracking-tight leading-tight">
+                오늘부터 SNS는
+                <br />
+                로이어드에게 맡기세요.
+              </h2>
+              <p className="mt-5 text-white/75 text-lg max-w-md">
+                5분 채널 연동, 즉시 전담 크루 배정.
+                <br />첫 7일은 무료로 운영해 드립니다.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <a
+                  href="/auth"
+                  className="inline-flex items-center gap-2 rounded-full bg-white text-primary px-6 py-3.5 text-sm font-bold hover:bg-white/90 transition"
+                >
+                  무료로 시작하기 <Rocket className="size-4" />
+                </a>
+              </div>
+              <div className="mt-8 flex items-center gap-4 text-xs text-white/60">
+                <div className="flex items-center gap-1.5">
+                  <Check className="size-3.5 text-accent" /> 신용카드 등록 불필요
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="size-3.5 text-accent" /> 24시간 내 회신
+                </div>
+              </div>
             </div>
-            <h2 className="font-display text-4xl md:text-6xl font-bold text-primary-foreground tracking-tight leading-tight">
-              오늘부터 SNS는
-              <br />
-              로이어드에게 맡기세요.
-            </h2>
-            <p className="mt-5 text-white/75 text-lg max-w-xl mx-auto">
-              5분 채널 연동, 즉시 전담 크루 배정. 첫 7일은 무료로 운영해 드립니다.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <a
-                href="/admin"
-                className="inline-flex items-center gap-2 rounded-full bg-accent-gradient px-6 py-3.5 text-sm font-bold text-accent-foreground shadow-crimson hover:scale-[1.02] transition"
-              >
-                무료로 시작하기 <Rocket className="size-4" />
-              </a>
-              <a
-                href="#"
-                className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-6 py-3.5 text-sm font-medium text-white hover:bg-white/20 transition border border-white/20"
-              >
-                도입 상담 받기
-              </a>
+            <div>
+              <ContactForm variant="dark" />
             </div>
           </div>
         </div>

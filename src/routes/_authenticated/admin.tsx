@@ -39,6 +39,7 @@ import logo from "@/assets/loyard-logo.jpg.asset.json";
 import showcase1 from "@/assets/showcase-1.jpg";
 import showcase2 from "@/assets/showcase-2.jpg";
 import showcase3 from "@/assets/showcase-3.jpg";
+import { LeadsPanel } from "@/components/LeadsPanel";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -103,7 +104,7 @@ const SAMPLE_BODY = `[성수동 #감성식당]
 function AdminConsole() {
   const [selectedUid, setSelectedUid] = useState<string>(CLIENTS[0].uid);
   const [query, setQuery] = useState("");
-  const [nav, setNav] = useState<"workspace" | "queue" | "channels" | "members" | "analytics" | "settings">("workspace");
+  const [nav, setNav] = useState<"workspace" | "queue" | "channels" | "leads" | "members" | "analytics" | "settings">("workspace");
 
   const filtered = useMemo(
     () =>
@@ -122,11 +123,15 @@ function AdminConsole() {
       <SideNav nav={nav} setNav={setNav} />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar query={query} setQuery={setQuery} active={active} />
-        <div className="flex-1 flex min-h-0">
-          <ClientList clients={filtered} selectedUid={selectedUid} onSelect={setSelectedUid} />
-          <Workspace client={active} />
-          <AiPanel client={active} />
-        </div>
+        {nav === "leads" ? (
+          <LeadsPanel />
+        ) : (
+          <div className="flex-1 flex min-h-0">
+            <ClientList clients={filtered} selectedUid={selectedUid} onSelect={setSelectedUid} />
+            <Workspace client={active} />
+            <AiPanel client={active} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -144,6 +149,7 @@ function SideNav({
     { id: "workspace", label: "워크스페이스", Icon: LayoutDashboard },
     { id: "queue", label: "생성 큐", Icon: Layers, badge: 7 },
     { id: "channels", label: "채널 세션", Icon: ShieldCheck },
+    { id: "leads", label: "상담 리드", Icon: Bell },
     { id: "members", label: "회원 관리", Icon: Users },
     { id: "analytics", label: "성과 리포트", Icon: Activity },
     { id: "settings", label: "설정", Icon: Settings },
