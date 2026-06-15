@@ -71,6 +71,12 @@ function Landing() {
 }
 
 function Nav() {
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(!!session));
+    return () => sub.subscription.unsubscribe();
+  }, []);
   return (
     <header className="fixed top-0 inset-x-0 z-50">
       <div className="mx-auto max-w-7xl px-6 py-4">
@@ -87,14 +93,28 @@ function Nav() {
             <a href="#showcase" className="hover:text-foreground transition">사례</a>
             <a href="#workflow" className="hover:text-foreground transition">작동방식</a>
             <a href="#pricing" className="hover:text-foreground transition">요금</a>
-            <a href="/admin" className="hover:text-foreground transition">Admin</a>
           </nav>
-          <a
-            href="/admin"
-            className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-medium text-primary-foreground shadow-navy hover:opacity-90 transition"
-          >
-            시작하기 <ArrowRight className="size-3.5" />
-          </a>
+          <div className="flex items-center gap-2">
+            {signedIn ? (
+              <>
+                <a href="/admin" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition">대시보드</a>
+                <button
+                  onClick={() => void supabase.auth.signOut()}
+                  className="text-sm text-muted-foreground hover:text-foreground transition px-3 py-2"
+                >
+                  로그아웃
+                </button>
+              </>
+            ) : (
+              <a href="/auth" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition px-2">로그인</a>
+            )}
+            <a
+              href={signedIn ? "/admin" : "/auth"}
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-medium text-primary-foreground shadow-navy hover:opacity-90 transition"
+            >
+              {signedIn ? "대시보드" : "시작하기"} <ArrowRight className="size-3.5" />
+            </a>
+          </div>
         </div>
       </div>
     </header>
