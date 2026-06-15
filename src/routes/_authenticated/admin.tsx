@@ -564,6 +564,7 @@ function TextTab({
               </div>
             ))}
           </div>
+          )}
         </div>
 
         <div className="rounded-2xl bg-brand text-primary-foreground p-5 shadow-navy">
