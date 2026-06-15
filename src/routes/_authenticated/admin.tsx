@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { generateContent } from "@/lib/ai.functions";
 import { Fragment, useMemo, useState } from "react";
 import {
   Search,
@@ -398,7 +400,9 @@ function Workspace({ client }: { client: Client }) {
 
       {/* Body */}
       <div className="p-6 space-y-5">
-        {tab === "text" && <TextTab body={body} setBody={setBody} keyword={keyword} setKeyword={setKeyword} />}
+        {tab === "text" && (
+          <TextTab body={body} setBody={setBody} keyword={keyword} setKeyword={setKeyword} client={client} />
+        )}
         {tab === "image" && <ImageTab client={client} />}
         {tab === "video" && <VideoTab />}
         {tab === "schedule" && <ScheduleTab client={client} />}
@@ -427,22 +431,43 @@ function TextTab({
   setBody,
   keyword,
   setKeyword,
+  client,
 }: {
   body: string;
   setBody: (v: string) => void;
   keyword: string;
   setKeyword: (v: string) => void;
+  client: Client;
 }) {
   const [generating, setGenerating] = useState(false);
   const [tagSetIdx, setTagSetIdx] = useState(0);
+  const [aiTags, setAiTags] = useState<string[] | null>(null);
+  const [aiError, setAiError] = useState<string>("");
+  const generate = useServerFn(generateContent);
 
-  function regen() {
+  async function regen() {
     setGenerating(true);
-    setTimeout(() => {
+    setAiError("");
+    try {
+      const res = await generate({
+        data: {
+          store: client.store,
+          industry: client.industry,
+          tone: client.tone,
+          keyword,
+          channel: "instagram",
+        },
+      });
+      if (res.body) setBody(res.body);
+      if (res.hashtags?.length) setAiTags(res.hashtags);
+    } catch (e) {
+      setAiError("AI 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      // fallback to sample
       setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length);
       setBody(SAMPLE_BODY + `\n\n[키워드: ${keyword}]`);
+    } finally {
       setGenerating(false);
-    }, 900);
+    }
   }
 
   return (
@@ -462,10 +487,17 @@ function TextTab({
           </button>
         </div>
 
+        {aiError && (
+          <div className="mb-3 p-2.5 rounded-lg bg-accent/10 border border-accent/30 text-[11px] text-accent flex items-center gap-1.5">
+            <AlertCircle className="size-3" /> {aiError}
+          </div>
+        )}
+
         <label className="text-[11px] uppercase tracking-widest text-muted-foreground">핵심 키워드</label>
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
+          placeholder="예: 오늘의 메뉴, 신메뉴 출시, 주말 한정"
           className="mt-1 w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
         />
 
@@ -488,15 +520,27 @@ function TextTab({
         <div className="rounded-2xl bg-card border border-border p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <Hash className="size-4 text-crimson" /> 해시태그 5조합
+              <Hash className="size-4 text-crimson" /> {aiTags ? "AI 추천 해시태그" : "해시태그 5조합"}
             </div>
             <button
-              onClick={() => setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length)}
+              onClick={() => {
+                setAiTags(null);
+                setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length);
+              }}
               className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition"
             >
-              <RefreshCw className="size-3" /> 셔플
+              <RefreshCw className="size-3" /> 샘플
             </button>
           </div>
+          {aiTags ? (
+            <div className="rounded-xl border border-primary/30 bg-primary/[0.05] p-3 flex flex-wrap gap-1.5">
+              {aiTags.map((t) => (
+                <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-card border border-border text-foreground/80">
+                  {t}
+                </span>
+              ))}
+            </div>
+          ) : (
           <div className="space-y-2">
             {SAMPLE_TAGS.map((set, i) => (
               <div
@@ -520,6 +564,7 @@ function TextTab({
               </div>
             ))}
           </div>
+          )}
         </div>
 
         <div className="rounded-2xl bg-brand text-primary-foreground p-5 shadow-navy">
