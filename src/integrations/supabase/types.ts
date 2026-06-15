@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          resource_id: string | null
+          resource_type: string
+          store_code: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          resource_id?: string | null
+          resource_type: string
+          store_code?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          resource_id?: string | null
+          resource_type?: string
+          store_code?: string | null
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           admin_note: string | null
@@ -56,6 +89,51 @@ export type Database = {
           store_name?: string | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      content_drafts: {
+        Row: {
+          ai_model: string | null
+          body: string
+          channel: Database["public"]["Enums"]["sns_channel"] | null
+          created_at: string
+          created_by: string | null
+          hashtags: string[]
+          id: string
+          image_urls: string[]
+          status: Database["public"]["Enums"]["draft_status"]
+          store_code: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_model?: string | null
+          body?: string
+          channel?: Database["public"]["Enums"]["sns_channel"] | null
+          created_at?: string
+          created_by?: string | null
+          hashtags?: string[]
+          id?: string
+          image_urls?: string[]
+          status?: Database["public"]["Enums"]["draft_status"]
+          store_code: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_model?: string | null
+          body?: string
+          channel?: Database["public"]["Enums"]["sns_channel"] | null
+          created_at?: string
+          created_by?: string | null
+          hashtags?: string[]
+          id?: string
+          image_urls?: string[]
+          status?: Database["public"]["Enums"]["draft_status"]
+          store_code?: string
+          title?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -104,6 +182,101 @@ export type Database = {
         }
         Relationships: []
       }
+      publish_schedule: {
+        Row: {
+          attempts: number
+          channel: Database["public"]["Enums"]["sns_channel"]
+          created_at: string
+          draft_id: string
+          external_post_id: string | null
+          id: string
+          last_error: string | null
+          published_at: string | null
+          scheduled_at: string
+          status: Database["public"]["Enums"]["schedule_status"]
+          store_code: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          channel: Database["public"]["Enums"]["sns_channel"]
+          created_at?: string
+          draft_id: string
+          external_post_id?: string | null
+          id?: string
+          last_error?: string | null
+          published_at?: string | null
+          scheduled_at: string
+          status?: Database["public"]["Enums"]["schedule_status"]
+          store_code: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          channel?: Database["public"]["Enums"]["sns_channel"]
+          created_at?: string
+          draft_id?: string
+          external_post_id?: string | null
+          id?: string
+          last_error?: string | null
+          published_at?: string | null
+          scheduled_at?: string
+          status?: Database["public"]["Enums"]["schedule_status"]
+          store_code?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publish_schedule_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_sessions: {
+        Row: {
+          account_handle: string | null
+          channel: Database["public"]["Enums"]["sns_channel"]
+          created_at: string
+          expires_at: string | null
+          id: string
+          last_verified_at: string | null
+          notes: string | null
+          proxy_region: string | null
+          status: Database["public"]["Enums"]["session_status"]
+          store_code: string
+          updated_at: string
+        }
+        Insert: {
+          account_handle?: string | null
+          channel: Database["public"]["Enums"]["sns_channel"]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_verified_at?: string | null
+          notes?: string | null
+          proxy_region?: string | null
+          status?: Database["public"]["Enums"]["session_status"]
+          store_code: string
+          updated_at?: string
+        }
+        Update: {
+          account_handle?: string | null
+          channel?: Database["public"]["Enums"]["sns_channel"]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_verified_at?: string | null
+          notes?: string | null
+          proxy_region?: string | null
+          status?: Database["public"]["Enums"]["session_status"]
+          store_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -130,6 +303,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_store_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -140,7 +314,16 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "staff" | "admin"
+      draft_status: "draft" | "review" | "approved" | "published" | "archived"
       lead_status: "new" | "contacted" | "converted" | "dropped"
+      schedule_status:
+        | "queued"
+        | "publishing"
+        | "published"
+        | "failed"
+        | "cancelled"
+      session_status: "active" | "expiring" | "expired" | "revoked"
+      sns_channel: "instagram" | "tiktok" | "naver" | "kakao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -269,7 +452,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "staff", "admin"],
+      draft_status: ["draft", "review", "approved", "published", "archived"],
       lead_status: ["new", "contacted", "converted", "dropped"],
+      schedule_status: [
+        "queued",
+        "publishing",
+        "published",
+        "failed",
+        "cancelled",
+      ],
+      session_status: ["active", "expiring", "expired", "revoked"],
+      sns_channel: ["instagram", "tiktok", "naver", "kakao"],
     },
   },
 } as const
