@@ -2,7 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { generateContent } from "@/lib/ai.functions";
-import { Fragment, useMemo, useState } from "react";
+import { saveDraft, scheduleDraft, listSchedule, unscheduleSlot, type ScheduleRow } from "@/lib/drafts.functions";
+import { streamImage } from "@/lib/streamImage";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   Search,
   Users,
