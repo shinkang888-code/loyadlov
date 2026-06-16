@@ -349,7 +349,10 @@ function StatusDot({ status }: { status: Client["status"] }) {
 function Workspace({ client }: { client: Client }) {
   const [tab, setTab] = useState<"text" | "image" | "video" | "schedule">("text");
   const [body, setBody] = useState(SAMPLE_BODY);
+  const [hashtags, setHashtags] = useState<string[]>(SAMPLE_TAGS[0]);
   const [keyword, setKeyword] = useState("미나리삼겹살 신메뉴 출시");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [aiModel, setAiModel] = useState<string | null>(null);
 
   return (
     <main className="flex-1 min-w-0 overflow-y-auto">
@@ -409,13 +412,23 @@ function Workspace({ client }: { client: Client }) {
       {/* Body */}
       <div className="p-6 space-y-5">
         {tab === "text" && (
-          <TextTab body={body} setBody={setBody} keyword={keyword} setKeyword={setKeyword} client={client} />
+          <TextTab
+            body={body}
+            setBody={setBody}
+            keyword={keyword}
+            setKeyword={setKeyword}
+            client={client}
+            onHashtags={setHashtags}
+            onModel={setAiModel}
+          />
         )}
-        {tab === "image" && <ImageTab client={client} />}
+        {tab === "image" && (
+          <ImageTab client={client} keyword={keyword} imageUrl={imageUrl} setImageUrl={setImageUrl} />
+        )}
         {tab === "video" && <VideoTab />}
-        {tab === "schedule" && <ScheduleTab client={client} />}
+        {tab === "schedule" && <ScheduleTab client={client} body={body} hashtags={hashtags} imageUrl={imageUrl} aiModel={aiModel} />}
 
-        <PublishBar client={client} />
+        <PublishBar client={client} body={body} hashtags={hashtags} imageUrl={imageUrl} aiModel={aiModel} />
       </div>
     </main>
   );
