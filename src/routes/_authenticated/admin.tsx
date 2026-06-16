@@ -2,7 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { generateContent } from "@/lib/ai.functions";
-import { Fragment, useMemo, useState } from "react";
+import { saveDraft, scheduleDraft, listSchedule, unscheduleSlot, type ScheduleRow } from "@/lib/drafts.functions";
+import { streamImage } from "@/lib/streamImage";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   Search,
   Users,
@@ -346,7 +349,10 @@ function StatusDot({ status }: { status: Client["status"] }) {
 function Workspace({ client }: { client: Client }) {
   const [tab, setTab] = useState<"text" | "image" | "video" | "schedule">("text");
   const [body, setBody] = useState(SAMPLE_BODY);
+  const [hashtags, setHashtags] = useState<string[]>(SAMPLE_TAGS[0]);
   const [keyword, setKeyword] = useState("미나리삼겹살 신메뉴 출시");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [aiModel, setAiModel] = useState<string | null>(null);
 
   return (
     <main className="flex-1 min-w-0 overflow-y-auto">
@@ -406,13 +412,23 @@ function Workspace({ client }: { client: Client }) {
       {/* Body */}
       <div className="p-6 space-y-5">
         {tab === "text" && (
-          <TextTab body={body} setBody={setBody} keyword={keyword} setKeyword={setKeyword} client={client} />
+          <TextTab
+            body={body}
+            setBody={setBody}
+            keyword={keyword}
+            setKeyword={setKeyword}
+            client={client}
+            onHashtags={setHashtags}
+            onModel={setAiModel}
+          />
         )}
-        {tab === "image" && <ImageTab client={client} />}
+        {tab === "image" && (
+          <ImageTab client={client} keyword={keyword} imageUrl={imageUrl} setImageUrl={setImageUrl} />
+        )}
         {tab === "video" && <VideoTab />}
-        {tab === "schedule" && <ScheduleTab client={client} />}
+        {tab === "schedule" && <ScheduleTab client={client} body={body} hashtags={hashtags} imageUrl={imageUrl} aiModel={aiModel} />}
 
-        <PublishBar client={client} />
+        <PublishBar client={client} body={body} hashtags={hashtags} imageUrl={imageUrl} aiModel={aiModel} />
       </div>
     </main>
   );
@@ -437,12 +453,16 @@ function TextTab({
   keyword,
   setKeyword,
   client,
+  onHashtags,
+  onModel,
 }: {
   body: string;
   setBody: (v: string) => void;
   keyword: string;
   setKeyword: (v: string) => void;
   client: Client;
+  onHashtags?: (tags: string[]) => void;
+  onModel?: (m: string | null) => void;
 }) {
   const [generating, setGenerating] = useState(false);
   const [tagSetIdx, setTagSetIdx] = useState(0);
@@ -464,12 +484,17 @@ function TextTab({
         },
       });
       if (res.body) setBody(res.body);
-      if (res.hashtags?.length) setAiTags(res.hashtags);
+      if (res.hashtags?.length) {
+        setAiTags(res.hashtags);
+        onHashtags?.(res.hashtags);
+      }
+      onModel?.(res.model ?? null);
     } catch (e) {
       setAiError("AI 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       // fallback to sample
       setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length);
       setBody(SAMPLE_BODY + `\n\n[키워드: ${keyword}]`);
+      onHashtags?.(SAMPLE_TAGS[(tagSetIdx + 1) % SAMPLE_TAGS.length]);
     } finally {
       setGenerating(false);
     }
@@ -587,48 +612,112 @@ function TextTab({
 }
 
 /* ----- Image tab ----- */
-function ImageTab({ client }: { client: Client }) {
-  const templates = [
-    { id: "moody", label: "감성 식당", img: client.avatar },
-    { id: "studio", label: "스튜디오 컷", img: showcase1 },
-    { id: "lifestyle", label: "라이프스타일", img: showcase3 },
+function ImageTab({
+  client,
+  keyword,
+  imageUrl,
+  setImageUrl,
+}: {
+  client: Client;
+  keyword: string;
+  imageUrl: string | null;
+  setImageUrl: (u: string | null) => void;
+}) {
+  const styles = [
+    { id: "moody", label: "감성 식당", hint: "warm moody lighting, cinematic restaurant photography" },
+    { id: "studio", label: "스튜디오 컷", hint: "clean studio product photo, soft shadows, minimalist" },
+    { id: "lifestyle", label: "라이프스타일", hint: "lifestyle editorial photo, natural light, candid moment" },
   ];
   const [picked, setPicked] = useState("moody");
+  const [generating, setGenerating] = useState(false);
+  const [finalized, setFinalized] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function generate() {
+    setGenerating(true);
+    setErr(null);
+    setFinalized(false);
+    setImageUrl(null);
+    const style = styles.find((s) => s.id === picked)?.hint ?? "";
+    const prompt = `${style}. Subject: ${client.store} (${client.industry}). Topic: ${keyword}. Korean small-business SNS feed image, 4:5 portrait composition, mouthwatering, high detail, no text overlays.`;
+    try {
+      await streamImage("/api/generate-image", prompt, (dataUrl, isFinal) => {
+        setImageUrl(dataUrl);
+        if (isFinal) setFinalized(true);
+      });
+      setFinalized(true);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "이미지 생성 실패");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <div className="grid lg:grid-cols-5 gap-5">
       <div className="lg:col-span-3 rounded-2xl bg-card border border-border p-5">
-        <div className="flex items-center gap-2 text-sm font-semibold mb-4">
-          <ImageIcon className="size-4 text-primary" /> 미디어 프리뷰
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ImageIcon className="size-4 text-primary" /> AI 미디어 생성
+          </div>
+          <button
+            onClick={generate}
+            disabled={generating}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand text-primary-foreground text-xs font-semibold shadow-soft hover:opacity-90 transition disabled:opacity-60"
+          >
+            {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />}
+            {generating ? "생성 중…" : imageUrl ? "다시 생성" : "AI 이미지 생성"}
+          </button>
         </div>
         <div className="relative rounded-2xl overflow-hidden border border-border aspect-[4/5] bg-secondary">
-          <img src={templates.find((t) => t.id === picked)?.img} alt="" className="w-full h-full object-cover" />
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt="AI 생성 미디어"
+              className={`w-full h-full object-cover transition-[filter] duration-500 ${finalized ? "blur-0" : "blur-2xl"}`}
+            />
+          ) : (
+            <div className="absolute inset-0 grid place-items-center text-xs text-muted-foreground p-6 text-center">
+              {generating ? "AI가 매장 컨셉으로 이미지를 만들고 있어요…" : "스타일을 선택하고 AI 이미지 생성을 눌러 보세요."}
+            </div>
+          )}
           <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-card/90 backdrop-blur rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-soft">
             <img src={logo.url} className="size-4 rounded-md" alt="" /> 로이어드 워터마크
           </div>
-          <div className="absolute bottom-0 inset-x-0 p-5 bg-gradient-to-t from-black/70 to-transparent text-white">
-            <div className="text-[11px] uppercase tracking-widest opacity-80">오늘의 메뉴</div>
-            <div className="font-display text-xl font-bold leading-tight mt-0.5">{client.store}</div>
-          </div>
+          {imageUrl && (
+            <div className="absolute bottom-0 inset-x-0 p-5 bg-gradient-to-t from-black/70 to-transparent text-white">
+              <div className="text-[11px] uppercase tracking-widest opacity-80">{keyword}</div>
+              <div className="font-display text-xl font-bold leading-tight mt-0.5">{client.store}</div>
+            </div>
+          )}
         </div>
+        {err && (
+          <div className="mt-3 p-2.5 rounded-lg bg-accent/10 border border-accent/30 text-[11px] text-accent flex items-center gap-1.5">
+            <AlertCircle className="size-3" /> {err}
+          </div>
+        )}
       </div>
 
       <div className="lg:col-span-2 space-y-5">
         <div className="rounded-2xl bg-card border border-border p-5">
-          <div className="text-sm font-semibold mb-3">템플릿</div>
+          <div className="text-sm font-semibold mb-3">스타일 프리셋</div>
           <div className="grid grid-cols-3 gap-2">
-            {templates.map((t) => (
+            {styles.map((s) => (
               <button
-                key={t.id}
-                onClick={() => setPicked(t.id)}
-                className={`relative aspect-square rounded-xl overflow-hidden border-2 transition ${
-                  picked === t.id ? "border-primary" : "border-transparent hover:border-border"
+                key={s.id}
+                onClick={() => setPicked(s.id)}
+                className={`aspect-square rounded-xl border-2 p-2 text-center transition flex flex-col items-center justify-center gap-1 ${
+                  picked === s.id ? "border-primary bg-primary/[0.05]" : "border-border hover:border-primary/40"
                 }`}
               >
-                <img src={t.img} alt="" className="w-full h-full object-cover" />
-                <span className="absolute bottom-0 inset-x-0 text-[10px] font-medium text-white bg-black/50 py-0.5">{t.label}</span>
+                <Sparkles className={`size-4 ${picked === s.id ? "text-primary" : "text-muted-foreground"}`} />
+                <span className="text-[10px] font-medium">{s.label}</span>
               </button>
             ))}
           </div>
+          <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
+            현재 키워드 <span className="font-semibold text-foreground">"{keyword}"</span> 기준으로 매장 컨셉에 맞춰 생성합니다.
+          </p>
         </div>
 
         <div className="rounded-2xl bg-card border border-border p-5">
@@ -637,10 +726,9 @@ function ImageTab({ client }: { client: Client }) {
           </div>
           <div className="space-y-2 text-sm">
             {[
-              { name: "배경 이미지", visible: true },
+              { name: "AI 배경 이미지", visible: !!imageUrl },
               { name: "로고 워터마크", visible: true },
-              { name: "헤드라인 텍스트", visible: true },
-              { name: "가격 스티커", visible: false },
+              { name: "헤드라인 텍스트", visible: !!imageUrl },
             ].map((l) => (
               <div key={l.name} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary border border-border">
                 <span className={l.visible ? "" : "text-muted-foreground line-through"}>{l.name}</span>
@@ -648,9 +736,6 @@ function ImageTab({ client }: { client: Client }) {
               </div>
             ))}
           </div>
-          <button className="mt-3 w-full h-9 rounded-lg bg-secondary border border-dashed border-border text-xs font-medium text-muted-foreground hover:text-foreground transition flex items-center justify-center gap-1">
-            <Plus className="size-3.5" /> 레이어 추가
-          </button>
         </div>
       </div>
     </div>
@@ -669,68 +754,227 @@ function VideoTab() {
 }
 
 /* ----- Schedule tab ----- */
-function ScheduleTab({ client }: { client: Client }) {
+function ScheduleTab({
+  client,
+  body,
+  hashtags,
+  imageUrl,
+  aiModel,
+}: {
+  client: Client;
+  body: string;
+  hashtags: string[];
+  imageUrl: string | null;
+  aiModel: string | null;
+}) {
   const days = ["월", "화", "수", "목", "금", "토", "일"];
   const slots = [9, 12, 15, 18, 21];
+  const save = useServerFn(saveDraft);
+  const sched = useServerFn(scheduleDraft);
+  const list = useServerFn(listSchedule);
+  const unsched = useServerFn(unscheduleSlot);
+
+  const weekStart = useMemo(() => {
+    const d = new Date();
+    const dow = (d.getDay() + 6) % 7; // Mon=0
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - dow);
+    return d;
+  }, []);
+
+  const [rows, setRows] = useState<ScheduleRow[]>([]);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  async function refresh() {
+    try {
+      const to = new Date(weekStart);
+      to.setDate(to.getDate() + 7);
+      const data = await list({ data: { from: weekStart.toISOString(), to: to.toISOString() } });
+      setRows(data);
+    } catch (e) {
+      // ignore — empty state is fine
+    }
+  }
+  useEffect(() => {
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekStart.getTime()]);
+
+  function slotAt(dayIdx: number, hour: number) {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + dayIdx);
+    d.setHours(hour, 0, 0, 0);
+    return d;
+  }
+  function findRow(dayIdx: number, hour: number) {
+    const target = slotAt(dayIdx, hour).getTime();
+    return rows.find((r) => new Date(r.scheduled_at).getTime() === target);
+  }
+
+  async function toggleSlot(dayIdx: number, hour: number) {
+    const key = `${dayIdx}-${hour}`;
+    const existing = findRow(dayIdx, hour);
+    setBusyKey(key);
+    try {
+      if (existing) {
+        await unsched({ data: { id: existing.id } });
+        toast.success("예약을 취소했어요.");
+      } else {
+        if (!body || body.length < 5) {
+          toast.error("본문을 먼저 작성해 주세요.");
+          return;
+        }
+        const draft = await save({
+          data: {
+            title: `${client.store} · ${slotAt(dayIdx, hour).toLocaleDateString("ko-KR")}`,
+            body,
+            hashtags,
+            imageUrls: imageUrl ? [imageUrl] : [],
+            channel: "instagram",
+            aiModel,
+          },
+        });
+        await sched({
+          data: {
+            draftId: draft.id,
+            channel: "instagram",
+            scheduledAt: slotAt(dayIdx, hour).toISOString(),
+          },
+        });
+        toast.success(`${days[dayIdx]} ${hour}:00 예약 완료`);
+      }
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "예약 처리 실패");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   return (
     <div className="rounded-2xl bg-card border border-border p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm font-semibold flex items-center gap-2">
           <Calendar className="size-4 text-primary" /> {client.store} 이번 주 발행 스케줄
         </div>
-        <button className="text-xs text-primary hover:underline">자동 분배</button>
+        <div className="text-[11px] text-muted-foreground">
+          슬롯을 클릭하면 현재 본문/해시태그/이미지를 그 시간에 예약합니다.
+        </div>
       </div>
       <div className="grid grid-cols-[60px_1fr] gap-2">
         <div />
         <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-muted-foreground">
-          {days.map((d) => <div key={d}>{d}</div>)}
+          {days.map((d, i) => {
+            const date = new Date(weekStart);
+            date.setDate(date.getDate() + i);
+            return (
+              <div key={d}>
+                {d}
+                <div className="text-[10px] font-normal text-muted-foreground/70">{date.getDate()}일</div>
+              </div>
+            );
+          })}
         </div>
         {slots.map((s) => (
           <Fragment key={s}>
             <div className="text-xs text-muted-foreground self-center">{s}:00</div>
             <div className="grid grid-cols-7 gap-2">
-              {days.map((d) => {
-                const filled = (s + d.charCodeAt(0)) % 4 === 0;
+              {days.map((d, dayIdx) => {
+                const row = findRow(dayIdx, s);
+                const key = `${dayIdx}-${s}`;
+                const isBusy = busyKey === key;
                 return (
-                  <div
+                  <button
                     key={d}
-                    className={`h-10 rounded-lg border ${
-                      filled
-                        ? "bg-primary/[0.08] border-primary/30 grid place-items-center"
-                        : "bg-secondary border-border border-dashed"
-                    }`}
+                    onClick={() => void toggleSlot(dayIdx, s)}
+                    disabled={isBusy}
+                    className={`h-10 rounded-lg border transition grid place-items-center ${
+                      row
+                        ? "bg-primary/[0.10] border-primary/40 hover:bg-primary/[0.15]"
+                        : "bg-secondary border-border border-dashed hover:border-primary/30 hover:bg-primary/[0.04]"
+                    } disabled:opacity-50`}
+                    title={row ? "클릭하여 예약 취소" : "클릭하여 예약"}
                   >
-                    {filled && <Instagram className="size-3.5 text-primary" />}
-                  </div>
+                    {isBusy ? (
+                      <Loader2 className="size-3.5 animate-spin text-primary" />
+                    ) : row ? (
+                      <Instagram className="size-3.5 text-primary" />
+                    ) : (
+                      <Plus className="size-3 text-muted-foreground/40" />
+                    )}
+                  </button>
                 );
               })}
             </div>
           </Fragment>
         ))}
       </div>
+      <div className="mt-4 text-[11px] text-muted-foreground">
+        예약 {rows.length}건 등록됨 · 매장 코드 기준으로 격리되어 저장됩니다.
+      </div>
     </div>
   );
 }
 
 /* ----- Publish bar ----- */
-function PublishBar({ client }: { client: Client }) {
+function PublishBar({
+  client,
+  body,
+  hashtags,
+  imageUrl,
+  aiModel,
+}: {
+  client: Client;
+  body: string;
+  hashtags: string[];
+  imageUrl: string | null;
+  aiModel: string | null;
+}) {
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  const save = useServerFn(saveDraft);
+
+  async function onSave() {
+    if (!body || body.length < 5) {
+      toast.error("본문을 먼저 작성해 주세요.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await save({
+        data: {
+          title: `${client.store} · ${new Date().toLocaleString("ko-KR")}`,
+          body,
+          hashtags,
+          imageUrls: imageUrl ? [imageUrl] : [],
+          channel: "instagram",
+          aiModel,
+        },
+      });
+      setSaved(true);
+      toast.success("드래프트를 저장했어요.");
+      setTimeout(() => setSaved(false), 1800);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "저장 실패");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-4 bg-card/95 backdrop-blur border-t border-border flex flex-wrap items-center gap-3">
       <div className="text-xs text-muted-foreground mr-auto">
         구글드라이브 경로: <span className="font-mono text-foreground/80">/{client.uid}_{client.store}/2026-06_콘텐츠/</span>
       </div>
       <button
-        onClick={() => {
-          setSaved(true);
-          setTimeout(() => setSaved(false), 1800);
-        }}
-        className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-secondary border border-border text-sm font-medium hover:bg-secondary/70 transition"
+        onClick={() => void onSave()}
+        disabled={saving}
+        className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-secondary border border-border text-sm font-medium hover:bg-secondary/70 transition disabled:opacity-60"
       >
-        {saved ? <CheckCircle2 className="size-4 text-emerald-500" /> : <Cloud className="size-4" />}
-        {saved ? "드라이브 저장됨" : "구글드라이브 저장"}
+        {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? <CheckCircle2 className="size-4 text-emerald-500" /> : <Cloud className="size-4" />}
+        {saving ? "저장 중…" : saved ? "드래프트 저장됨" : "드래프트 저장"}
       </button>
       <button
         onClick={() => {
@@ -738,6 +982,7 @@ function PublishBar({ client }: { client: Client }) {
           setTimeout(() => {
             setPublishing(false);
             setPublished(true);
+            toast.success("발행 큐에 등록했어요.");
             setTimeout(() => setPublished(false), 2200);
           }, 1400);
         }}
