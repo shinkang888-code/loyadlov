@@ -453,12 +453,16 @@ function TextTab({
   keyword,
   setKeyword,
   client,
+  onHashtags,
+  onModel,
 }: {
   body: string;
   setBody: (v: string) => void;
   keyword: string;
   setKeyword: (v: string) => void;
   client: Client;
+  onHashtags?: (tags: string[]) => void;
+  onModel?: (m: string | null) => void;
 }) {
   const [generating, setGenerating] = useState(false);
   const [tagSetIdx, setTagSetIdx] = useState(0);
@@ -480,12 +484,17 @@ function TextTab({
         },
       });
       if (res.body) setBody(res.body);
-      if (res.hashtags?.length) setAiTags(res.hashtags);
+      if (res.hashtags?.length) {
+        setAiTags(res.hashtags);
+        onHashtags?.(res.hashtags);
+      }
+      onModel?.(res.model ?? null);
     } catch (e) {
       setAiError("AI 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       // fallback to sample
       setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length);
       setBody(SAMPLE_BODY + `\n\n[키워드: ${keyword}]`);
+      onHashtags?.(SAMPLE_TAGS[(tagSetIdx + 1) % SAMPLE_TAGS.length]);
     } finally {
       setGenerating(false);
     }
