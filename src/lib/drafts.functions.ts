@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logActivity } from "@/lib/activity.server";
 
 const Channel = z.enum(["instagram", "tiktok", "naver", "kakao"]);
 
@@ -50,6 +51,16 @@ export const saveDraft = createServerFn({ method: "POST" })
       .select("id, store_code, title, body, hashtags, image_urls, channel, status, created_at")
       .single();
     if (error) throw new Error(error.message);
+
+    await logActivity(supabase, {
+      actorId: context.userId,
+      storeCode: prof.store_code,
+      action: "draft_saved",
+      resourceType: "content_draft",
+      resourceId: row.id,
+      metadata: { channel: data.channel },
+    });
+
     return row as SavedDraft;
   });
 

@@ -31,6 +31,7 @@ import {
   type YouTubeOAuthSettings,
 } from "@/lib/social/youtubeOAuthSettings";
 import type { SocialPlatform } from "@/lib/social/types";
+import { logActivity } from "@/lib/activity.server";
 
 const Platform = z.enum(["instagram", "threads", "youtube", "naver_blog"]);
 
@@ -96,10 +97,19 @@ export const publishSocialPostFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireStoreCode(context.userId);
+    const storeCode = await requireStoreCode(context.userId);
     const origin = process.env.APP_URL?.trim() || "https://localhost";
     const result = await publishSocialPostById(data.postId, origin);
     if (!result.ok) throw new Error(result.error);
+
+    await logActivity(context.supabase, {
+      actorId: context.userId,
+      storeCode,
+      action: "post_published",
+      resourceType: "social_post",
+      resourceId: data.postId,
+    });
+
     return result;
   });
 

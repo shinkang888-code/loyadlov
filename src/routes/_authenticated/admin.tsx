@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { generateContent } from "@/lib/ai.functions";
 import { saveDraft, scheduleDraft, listSchedule, unscheduleSlot, type ScheduleRow } from "@/lib/drafts.functions";
 import { streamImage } from "@/lib/streamImage";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Search,
@@ -50,11 +50,21 @@ import { AssetsPanel } from "@/components/AssetsPanel";
 import { SocialPublishPanel } from "@/components/SocialPublishPanel";
 import { OAuthSettingsPanel } from "@/components/OAuthSettingsPanel";
 import { ChannelOAuthConnectDialog } from "@/components/ChannelOAuthConnectDialog";
+import { QueuePanel } from "@/components/QueuePanel";
+import { MembersPanel } from "@/components/MembersPanel";
+import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { useSocialAccounts } from "@/hooks/useSocialAccounts";
 import {
   createSocialPostFn,
   publishSocialPostFn,
 } from "@/lib/social.functions";
+import {
+  getCurrentUserFn,
+  listActivityFn,
+  listQueueFn,
+  listStoresFn,
+  type StoreSummary,
+} from "@/lib/profiles.functions";
 import {
   ALL_SOCIAL_PLATFORMS,
   SOCIAL_PLATFORM_LABELS,
@@ -71,7 +81,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminConsole,
 });
 
-/* ---------------- Mock data ---------------- */
+/* ---------------- Store / client types ---------------- */
 type Client = {
   uid: string;
   store: string;
@@ -81,16 +91,49 @@ type Client = {
   avatar: string;
   status: "active" | "pending" | "needs-auth";
   thisMonth: number;
-  plan: "Standard" | "Premium" | "Enterprise";
+  plan: string;
+  queuedCount: number;
 };
 
-const CLIENTS: Client[] = [
-  { uid: "ZA-2026-0917", store: "미나리삼겹살 성수점", industry: "요식업 · 한식", tone: ["감성적인", "신뢰감"], channels: ["ig", "nv", "kk"], avatar: showcase2, status: "active", thisMonth: 18, plan: "Premium" },
-  { uid: "ZA-2026-0822", store: "카페 안온", industry: "F&B · 카페", tone: ["미니멀", "차분한"], channels: ["ig", "tt"], avatar: showcase1, status: "needs-auth", thisMonth: 12, plan: "Standard" },
-  { uid: "ZA-2026-0731", store: "베어 헤어살롱", industry: "뷰티 · 헤어", tone: ["트렌디", "활기찬"], channels: ["ig", "tt", "nv"], avatar: showcase3, status: "active", thisMonth: 24, plan: "Premium" },
-  { uid: "ZA-2026-0688", store: "도토리 베이커리", industry: "F&B · 베이커리", tone: ["따뜻한", "감성적인"], channels: ["ig", "kk"], avatar: showcase1, status: "pending", thisMonth: 4, plan: "Standard" },
-  { uid: "ZA-2026-0512", store: "온유필라테스", industry: "헬스 · 필라테스", tone: ["전문적", "차분한"], channels: ["ig", "nv"], avatar: showcase3, status: "active", thisMonth: 9, plan: "Standard" },
-];
+const AVATAR_IMAGES = [showcase1, showcase2, showcase3];
+
+function storeToClient(s: StoreSummary, index: number): Client {
+  const channels = new Set<Client["channels"][number]>();
+  for (const p of s.connectedPlatforms) {
+    if (p === "instagram" || p === "threads") channels.add("ig");
+    if (p === "youtube") channels.add("tt");
+    if (p === "naver_blog") channels.add("nv");
+  }
+  if (s.instagramHandle) channels.add("ig");
+  if (s.naverHandle) channels.add("nv");
+  if (channels.size === 0) channels.add("ig");
+
+  return {
+    uid: s.storeCode,
+    store: s.businessName,
+    industry: s.industry,
+    tone: [],
+    channels: [...channels],
+    avatar: AVATAR_IMAGES[index % AVATAR_IMAGES.length],
+    status: s.status,
+    thisMonth: s.publishedThisMonth,
+    plan: s.plan,
+    queuedCount: s.queuedCount,
+  };
+}
+
+const FALLBACK_CLIENT: Client = {
+  uid: "—",
+  store: "매장 없음",
+  industry: "온보딩 필요",
+  tone: [],
+  channels: ["ig"],
+  avatar: showcase1,
+  status: "pending",
+  thisMonth: 0,
+  plan: "Standard",
+  queuedCount: 0,
+};
 
 const CHANNEL_META = {
   ig: { name: "Instagram", Icon: Instagram, color: "oklch(0.55 0.18 18)" },
@@ -122,7 +165,18 @@ const SAMPLE_BODY = `[성수동 #감성식당]
 
 /* ---------------- Component ---------------- */
 function AdminConsole() {
-  const [selectedUid, setSelectedUid] = useState<string>(CLIENTS[0].uid);
+  const listStores = useServerFn(listStoresFn);
+  const getCurrentUser = useServerFn(getCurrentUserFn);
+
+  const [stores, setStores] = useState<Client[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string }>({
+    name: "크루",
+    email: "",
+  });
+
+  const [selectedUid, setSelectedUid] = useState<string>("");
   const [query, setQuery] = useState("");
   const initialTab =
     typeof window !== "undefined"
@@ -156,24 +210,57 @@ function AdminConsole() {
     window.history.replaceState({}, "", `/admin${qs ? `?${qs}` : ""}`);
   }, []);
 
+  const loadStores = useCallback(async () => {
+    setStoresLoading(true);
+    try {
+      const [storeRes, userRes] = await Promise.all([listStores(), getCurrentUser()]);
+      setIsAdmin(storeRes.isAdmin);
+      const mapped = storeRes.stores.map((s, i) => storeToClient(s, i));
+      setStores(mapped);
+      if (mapped.length > 0) {
+        setSelectedUid((prev) => (mapped.some((c) => c.uid === prev) ? prev : mapped[0].uid));
+      }
+      const name =
+        userRes.profile?.display_name?.trim() ||
+        userRes.profile?.business_name?.trim() ||
+        userRes.email.split("@")[0] ||
+        "크루";
+      setCurrentUser({ name, email: userRes.email });
+    } catch {
+      setStores([]);
+    } finally {
+      setStoresLoading(false);
+    }
+  }, [listStores, getCurrentUser]);
+
+  useEffect(() => {
+    void loadStores();
+  }, [loadStores]);
+
   const filtered = useMemo(
     () =>
-      CLIENTS.filter(
+      stores.filter(
         (c) =>
           !query ||
           c.store.toLowerCase().includes(query.toLowerCase()) ||
           c.uid.toLowerCase().includes(query.toLowerCase()),
       ),
-    [query],
+    [stores, query],
   );
-  const active = CLIENTS.find((c) => c.uid === selectedUid) ?? CLIENTS[0];
+  const active = stores.find((c) => c.uid === selectedUid) ?? filtered[0] ?? FALLBACK_CLIENT;
+  const queueBadge = stores.reduce((sum, s) => sum + s.queuedCount, 0);
 
   return (
     <div className="min-h-screen bg-secondary/50 text-foreground flex">
-      <SideNav nav={nav} setNav={setNav} />
+      <SideNav nav={nav} setNav={setNav} queueBadge={queueBadge} currentUser={currentUser} />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar query={query} setQuery={setQuery} active={active} />
-        {nav === "leads" ? (
+        {storesLoading && nav === "workspace" ? (
+          <div className="flex-1 grid place-items-center text-sm text-muted-foreground">
+            <Loader2 className="size-5 animate-spin inline mr-2" />
+            매장 목록 로딩 중…
+          </div>
+        ) : nav === "leads" ? (
           <LeadsPanel />
         ) : nav === "assets" ? (
           <AssetsPanel />
@@ -183,13 +270,38 @@ function AdminConsole() {
             industry={active.industry}
             onRequestOAuthSetup={() => setOauthDialogOpen(true)}
           />
+        ) : nav === "queue" ? (
+          <QueuePanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
+        ) : nav === "members" ? (
+          <MembersPanel storeCode={active.uid !== "—" ? active.uid : undefined} isAdmin={isAdmin} />
+        ) : nav === "analytics" ? (
+          <AnalyticsPanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
         ) : nav === "settings" ? (
           <OAuthSettingsPanel />
+        ) : stores.length === 0 ? (
+          <div className="flex-1 grid place-items-center p-8 text-center">
+            <div className="max-w-md space-y-3">
+              <h2 className="font-display text-xl font-bold">등록된 매장이 없습니다</h2>
+              <p className="text-sm text-muted-foreground">
+                온보딩을 완료하거나 관리자에게 매장 코드 할당을 요청하세요.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="flex-1 flex min-h-0">
-            <ClientList clients={filtered} selectedUid={selectedUid} onSelect={setSelectedUid} />
+            <ClientList
+              clients={filtered}
+              selectedUid={selectedUid}
+              onSelect={setSelectedUid}
+              onRefresh={() => void loadStores()}
+              loading={storesLoading}
+            />
             <Workspace client={active} />
-            <AiPanel client={active} onConnectChannels={() => setOauthDialogOpen(true)} />
+            <AiPanel
+              client={active}
+              storeCode={active.uid !== "—" ? active.uid : undefined}
+              onConnectChannels={() => setOauthDialogOpen(true)}
+            />
           </div>
         )}
       </div>
@@ -206,13 +318,17 @@ function AdminConsole() {
 function SideNav({
   nav,
   setNav,
+  queueBadge,
+  currentUser,
 }: {
   nav: string;
   setNav: (n: any) => void;
+  queueBadge: number;
+  currentUser: { name: string; email: string };
 }) {
   const items = [
     { id: "workspace", label: "워크스페이스", Icon: LayoutDashboard },
-    { id: "queue", label: "생성 큐", Icon: Layers, badge: 7 },
+    { id: "queue", label: "생성 큐", Icon: Layers, badge: queueBadge > 0 ? queueBadge : undefined },
     { id: "channels", label: "채널 세션", Icon: ShieldCheck },
     { id: "assets", label: "소재함", Icon: FolderOpen },
     { id: "leads", label: "상담 리드", Icon: Bell },
@@ -277,10 +393,12 @@ function SideNav({
         </Link>
         <div className="mt-3 p-3 rounded-2xl bg-secondary border border-border">
           <div className="flex items-center gap-2">
-            <div className="size-8 rounded-full bg-brand text-primary-foreground grid place-items-center text-xs font-bold">JD</div>
+            <div className="size-8 rounded-full bg-brand text-primary-foreground grid place-items-center text-xs font-bold">
+              {currentUser.name.slice(0, 2).toUpperCase()}
+            </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold truncate">정도현 매니저</div>
-              <div className="text-[10px] text-muted-foreground truncate">crew@loyard.kr</div>
+              <div className="text-xs font-semibold truncate">{currentUser.name}</div>
+              <div className="text-[10px] text-muted-foreground truncate">{currentUser.email || "—"}</div>
             </div>
           </div>
         </div>
@@ -343,20 +461,28 @@ function ClientList({
   clients,
   selectedUid,
   onSelect,
+  onRefresh,
+  loading,
 }: {
   clients: Client[];
   selectedUid: string;
   onSelect: (uid: string) => void;
+  onRefresh: () => void;
+  loading: boolean;
 }) {
   return (
     <div className="w-[300px] shrink-0 bg-card border-r border-border flex flex-col">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-widest text-muted-foreground">담당 회원</div>
-          <div className="text-sm font-semibold mt-0.5">{clients.length}개 활성 워크스페이스</div>
+          <div className="text-sm font-semibold mt-0.5">{clients.length}개 워크스페이스</div>
         </div>
-        <button className="size-8 grid place-items-center rounded-lg hover:bg-secondary transition">
-          <RefreshCw className="size-3.5 text-muted-foreground" />
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="size-8 grid place-items-center rounded-lg hover:bg-secondary transition"
+        >
+          <RefreshCw className={`size-3.5 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -444,8 +570,8 @@ function Workspace({ client }: { client: Client }) {
           </div>
           <div className="hidden md:grid grid-cols-3 gap-3 text-center">
             <Stat label="이번 달" value={client.thisMonth} suffix="건" />
-            <Stat label="발행 성공률" value={98} suffix="%" />
-            <Stat label="평균 노출" value="12.4k" />
+            <Stat label="대기 큐" value={client.queuedCount} suffix="건" />
+            <Stat label="플랜" value={client.plan} />
           </div>
         </div>
 
@@ -1127,10 +1253,49 @@ const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, typeof Instagram> = {
   naver_blog: Globe,
 };
 
-function AiPanel({ client, onConnectChannels }: { client: Client; onConnectChannels: () => void }) {
+function AiPanel({
+  client,
+  storeCode,
+  onConnectChannels,
+}: {
+  client: Client;
+  storeCode?: string;
+  onConnectChannels: () => void;
+}) {
   const { accounts, isConnected, loading: accountsLoading } = useSocialAccounts();
+  const listQueue = useServerFn(listQueueFn);
+  const listActivity = useServerFn(listActivityFn);
+
+  const [queueItems, setQueueItems] = useState<Array<{ title: string; status: string }>>([]);
+  const [activities, setActivities] = useState<
+    Array<{ action: string; resourceType: string; createdAt: string }>
+  >([]);
 
   const hasDisconnected = ALL_SOCIAL_PLATFORMS.some((p) => !isConnected(p));
+
+  useEffect(() => {
+    if (!storeCode) return;
+    void listQueue({ data: { storeCode } }).then((r: { items: Array<{ title: string; status: string }> }) => {
+      setQueueItems(
+        r.items.slice(0, 4).map((i) => ({
+          title: i.title,
+          status:
+            i.status === "publishing"
+              ? "running"
+              : i.status === "queued" || i.status === "scheduled"
+                ? "queued"
+                : i.status === "published"
+                  ? "done"
+                  : "queued",
+        }))
+      );
+    });
+    void listActivity({ data: { storeCode, limit: 5 } }).then(
+      (r: { activities: Array<{ action: string; resourceType: string; createdAt: string }> }) => {
+        setActivities(r.activities);
+      }
+    );
+  }, [storeCode, listQueue, listActivity]);
 
   return (
     <aside className="w-[340px] shrink-0 bg-card border-l border-border flex flex-col">
@@ -1192,52 +1357,79 @@ function AiPanel({ client, onConnectChannels }: { client: Client; onConnectChann
         </Card>
 
         {/* Queue */}
-        <Card title="생성 큐 (Redis)" icon={<Layers className="size-4 text-crimson" />} extra="7 작업">
+        <Card
+          title="생성 · 발행 큐"
+          icon={<Layers className="size-4 text-crimson" />}
+          extra={queueItems.length > 0 ? `${queueItems.length} 작업` : undefined}
+        >
           <div className="space-y-2">
-            {[
-              { t: "본문 + 태그 생성", s: "done" },
-              { t: "메인 이미지 (SD 1024)", s: "running", p: 64 },
-              { t: "릴스 15초 (Sora)", s: "queued" },
-              { t: "구글드라이브 업로드", s: "queued" },
-            ].map((q) => (
-              <div key={q.t} className="px-3 py-2 rounded-lg bg-secondary border border-border">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium">{q.t}</span>
-                  <QueueBadge s={q.s as any} />
-                </div>
-                {q.s === "running" && (
-                  <div className="mt-1.5 h-1 rounded-full bg-card overflow-hidden">
-                    <div className="h-full bg-brand" style={{ width: `${q.p}%` }} />
+            {queueItems.length === 0 ? (
+              <div className="text-xs text-muted-foreground px-3 py-2">대기 작업 없음</div>
+            ) : (
+              queueItems.map((q) => (
+                <div key={q.title} className="px-3 py-2 rounded-lg bg-secondary border border-border">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium truncate">{q.title}</span>
+                    <QueueBadge s={q.status as "done" | "running" | "queued"} />
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              ))
+            )}
           </div>
         </Card>
 
         {/* Activity */}
         <Card title="최근 활동" icon={<Activity className="size-4 text-primary" />}>
           <ul className="space-y-3 text-xs">
-            {[
-              { i: <CheckCircle2 className="size-3.5 text-emerald-500" />, t: "인스타 피드 1건 발행 완료", time: "방금" },
-              { i: <Bot className="size-3.5 text-primary" />, t: "AI가 본문 5개 변형 생성", time: "4분 전" },
-              { i: <Cloud className="size-3.5 text-primary" />, t: "구글드라이브 백업 완료 · 12MB", time: "9분 전" },
-              { i: <AlertCircle className="size-3.5 text-accent" />, t: "TikTok 세션 만료 감지", time: "32분 전" },
-              { i: <Clock className="size-3.5 text-muted-foreground" />, t: "예약 발행 등록 · 내일 18:00", time: "1시간 전" },
-            ].map((a, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <div className="mt-0.5">{a.i}</div>
-                <div className="flex-1">
-                  <div className="text-foreground/90">{a.t}</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">{a.time}</div>
-                </div>
-              </li>
-            ))}
+            {activities.length === 0 ? (
+              <li className="text-muted-foreground px-1">활동 기록 없음</li>
+            ) : (
+              activities.map((a) => (
+                <li key={a.createdAt + a.action} className="flex items-start gap-2">
+                  <div className="mt-0.5">
+                    {a.action.includes("publish") ? (
+                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                    ) : a.action.includes("fail") ? (
+                      <AlertCircle className="size-3.5 text-accent" />
+                    ) : (
+                      <Bot className="size-3.5 text-primary" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-foreground/90">
+                      {formatActivityLabel(a.action, a.resourceType)}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {formatRelativeTime(a.createdAt)}
+                    </div>
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
         </Card>
       </div>
     </aside>
   );
+}
+
+function formatActivityLabel(action: string, resourceType: string): string {
+  const labels: Record<string, string> = {
+    draft_saved: "드래프트 저장",
+    post_published: "소셜 발행 완료",
+    role_assigned: "역할 변경",
+  };
+  return labels[action] ?? `${resourceType}: ${action}`;
+}
+
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "방금";
+  if (mins < 60) return `${mins}분 전`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  return new Date(iso).toLocaleDateString("ko-KR");
 }
 
 function Card({
