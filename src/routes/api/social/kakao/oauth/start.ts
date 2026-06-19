@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { buildYouTubeOAuthUrl } from "@/lib/social/youtubeOAuth";
-import { isYouTubeOAuthConfigured } from "@/lib/social/socialAccountServer";
+import { buildKakaoOAuthUrl } from "@/lib/social/kakaoOAuth";
+import { isKakaoOAuthConfigured } from "@/lib/social/socialAccountServer";
 import { resolveOAuthStoreCode } from "@/lib/oauthStore.server";
 
-export const Route = createFileRoute("/api/social/youtube/oauth/start")({
+export const Route = createFileRoute("/api/social/kakao/oauth/start")({
   server: {
     handlers: {
       GET: async ({ request }) => {
@@ -18,14 +18,14 @@ export const Route = createFileRoute("/api/social/youtube/oauth/start")({
         const userId = claims.claims.sub as string;
         const email = (claims.claims.email as string) ?? userId;
 
-        if (!(await isYouTubeOAuthConfigured())) {
-          return new Response("YouTube OAuth not configured", { status: 503 });
+        if (!(await isKakaoOAuthConfigured())) {
+          return new Response("Kakao OAuth not configured", { status: 503 });
         }
 
         const storeCode = await resolveOAuthStoreCode(userId, url.searchParams.get("storeCode"));
         if (!storeCode) return new Response("Store code required", { status: 400 });
 
-        const oauthUrl = await buildYouTubeOAuthUrl(url.origin, email, storeCode);
+        const oauthUrl = await buildKakaoOAuthUrl(url.origin, email, storeCode);
         if (!oauthUrl) return new Response("OAuth URL failed", { status: 500 });
 
         return Response.redirect(oauthUrl, 302);

@@ -2,10 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { logActivity } from "@/lib/activity.server";
+import { resolveRequestedStoreCode } from "@/lib/storeContext.server";
 
 const Channel = z.enum(["instagram", "tiktok", "naver", "kakao"]);
 
-const SaveInput = z.object({
+const StoreCodeInput = z.object({ storeCode: z.string().trim().optional() });
+
+const SaveInput = StoreCodeInput.extend({
   title: z.string().trim().max(200).optional().nullable(),
   body: z.string().trim().min(1).max(8000),
   hashtags: z.array(z.string().max(60)).max(30).optional().default([]),
@@ -30,17 +33,14 @@ export const saveDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SaveInput.parse(input))
   .handler(async ({ data, context }): Promise<SavedDraft> => {
-    const { supabase } = context;
-    const { data: prof, error: pe } = await supabase
-      .from("profiles")
-      .select("store_code")
-      .single();
-    if (pe || !prof?.store_code) throw new Error("매장 코드를 먼저 등록해주세요.");
+    const { supabase, userId } = context;
+    const storeCode = await resolveRequestedStoreCode(supabase, userId, data.storeCode);
 
     const { data: row, error } = await supabase
       .from("content_drafts")
       .insert({
-        store_code: prof.store_code,
+        store_code: storeCode,
+        created_by: userId,
         title: data.title ?? null,
         body: data.body,
         hashtags: data.hashtags,
@@ -53,8 +53,8 @@ export const saveDraft = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     await logActivity(supabase, {
-      actorId: context.userId,
-      storeCode: prof.store_code,
+      actorId: userId,
+      storeCode,
       action: "draft_saved",
       resourceType: "content_draft",
       resourceId: row.id,
@@ -66,18 +66,22 @@ export const saveDraft = createServerFn({ method: "POST" })
 
 export const listDrafts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<SavedDraft[]> => {
-    const { supabase } = context;
-    const { data, error } = await supabase
+  .inputValidator((input: unknown) => StoreCodeInput.parse(input ?? {}))
+  .handler(async ({ data, context }): Promise<SavedDraft[]> => {
+    const { supabase, userId } = context;
+    const storeCode = await resolveRequestedStoreCode(supabase, userId, data.storeCode);
+
+    const { data: rows, error } = await supabase
       .from("content_drafts")
       .select("id, store_code, title, body, hashtags, image_urls, channel, status, created_at")
+      .eq("store_code", storeCode)
       .order("created_at", { ascending: false })
       .limit(20);
     if (error) throw new Error(error.message);
-    return (data ?? []) as SavedDraft[];
+    return (rows ?? []) as SavedDraft[];
   });
 
-const ScheduleInput = z.object({
+const ScheduleInput = StoreCodeInput.extend({
   draftId: z.string().uuid(),
   channel: Channel,
   scheduledAt: z.string().datetime(),
@@ -95,15 +99,14 @@ export const scheduleDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ScheduleInput.parse(input))
   .handler(async ({ data, context }): Promise<ScheduleRow> => {
-    const { supabase } = context;
-    const { data: prof } = await supabase.from("profiles").select("store_code").single();
-    if (!prof?.store_code) throw new Error("매장 코드 누락");
+    const { supabase, userId } = context;
+    const storeCode = await resolveRequestedStoreCode(supabase, userId, data.storeCode);
 
     const { data: row, error } = await supabase
       .from("publish_schedule")
       .insert({
         draft_id: data.draftId,
-        store_code: prof.store_code,
+        store_code: storeCode,
         channel: data.channel,
         scheduled_at: data.scheduledAt,
       })
@@ -113,7 +116,7 @@ export const scheduleDraft = createServerFn({ method: "POST" })
     return row as ScheduleRow;
   });
 
-const RangeInput = z.object({
+const RangeInput = StoreCodeInput.extend({
   from: z.string().datetime(),
   to: z.string().datetime(),
 });
@@ -122,10 +125,13 @@ export const listSchedule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => RangeInput.parse(input))
   .handler(async ({ data, context }): Promise<ScheduleRow[]> => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const storeCode = await resolveRequestedStoreCode(supabase, userId, data.storeCode);
+
     const { data: rows, error } = await supabase
       .from("publish_schedule")
       .select("id, draft_id, channel, scheduled_at, status")
+      .eq("store_code", storeCode)
       .gte("scheduled_at", data.from)
       .lte("scheduled_at", data.to)
       .order("scheduled_at", { ascending: true });
@@ -143,4 +149,24 @@ export const unscheduleSlot = createServerFn({ method: "POST" })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const getStoreDrivePathFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => StoreCodeInput.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const storeCode = await resolveRequestedStoreCode(
+      context.supabase,
+      context.userId,
+      data.storeCode
+    );
+    const { data: prof } = await context.supabase
+      .from("profiles")
+      .select("business_name")
+      .eq("store_code", storeCode)
+      .limit(1)
+      .maybeSingle();
+    const name = prof?.business_name?.trim() || storeCode;
+    const safeName = name.replace(/[/\\?%*:|"<>]/g, "_").slice(0, 40);
+    return { path: `/${storeCode}_${safeName}/`, storeCode };
   });

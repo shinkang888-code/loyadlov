@@ -15,6 +15,8 @@ import {
   saveMetaOAuthSettingsFn,
   saveNaverOAuthSettingsFn,
   saveYouTubeOAuthSettingsFn,
+  saveTikTokOAuthSettingsFn,
+  saveKakaoOAuthSettingsFn,
 } from "@/lib/social.functions";
 import { useSocialAccounts } from "@/hooks/useSocialAccounts";
 import { SOCIAL_PLATFORM_LABELS } from "@/lib/social/types";
@@ -24,16 +26,19 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConnected?: () => void;
+  storeCode?: string;
 };
 
 type Step = "credentials" | "connect";
 
-export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: Props) {
+export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected, storeCode }: Props) {
   const getSettings = useServerFn(getOAuthSettingsFn);
   const saveMeta = useServerFn(saveMetaOAuthSettingsFn);
   const saveYouTube = useServerFn(saveYouTubeOAuthSettingsFn);
   const saveNaver = useServerFn(saveNaverOAuthSettingsFn);
-  const { config, refresh, isConnected } = useSocialAccounts();
+  const saveTikTok = useServerFn(saveTikTokOAuthSettingsFn);
+  const saveKakao = useServerFn(saveKakaoOAuthSettingsFn);
+  const { config, refresh, isConnected } = useSocialAccounts(storeCode);
 
   const [step, setStep] = useState<Step>("credentials");
   const [loading, setLoading] = useState(false);
@@ -48,8 +53,20 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: P
   const [naverClientId, setNaverClientId] = useState("");
   const [naverClientSecret, setNaverClientSecret] = useState("");
   const [naverEnabled, setNaverEnabled] = useState(true);
+  const [tiktokClientKey, setTiktokClientKey] = useState("");
+  const [tiktokClientSecret, setTiktokClientSecret] = useState("");
+  const [tiktokEnabled, setTiktokEnabled] = useState(true);
+  const [kakaoRestKey, setKakaoRestKey] = useState("");
+  const [kakaoClientSecret, setKakaoClientSecret] = useState("");
+  const [kakaoEnabled, setKakaoEnabled] = useState(true);
 
-  const [status, setStatus] = useState({ meta: false, youtube: false, naver: false });
+  const [status, setStatus] = useState({
+    meta: false,
+    youtube: false,
+    naver: false,
+    tiktok: false,
+    kakao: false,
+  });
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
@@ -59,6 +76,8 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: P
         meta: s.meta.configured,
         youtube: s.youtube.configured,
         naver: s.naver.configured,
+        tiktok: s.tiktok.configured,
+        kakao: s.kakao.configured,
       });
       await refresh();
     } finally {
@@ -104,6 +123,24 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: P
             },
           },
         }),
+        saveTikTok({
+          data: {
+            settings: {
+              clientKey: tiktokClientKey.trim() || undefined,
+              clientSecret: tiktokClientSecret.trim() || undefined,
+              enabled: tiktokEnabled,
+            },
+          },
+        }),
+        saveKakao({
+          data: {
+            settings: {
+              restApiKey: kakaoRestKey.trim() || undefined,
+              clientSecret: kakaoClientSecret.trim() || undefined,
+              enabled: kakaoEnabled,
+            },
+          },
+        }),
       ]);
       toast.success("OAuth API 설정 저장 완료");
       const s = await getSettings();
@@ -111,6 +148,8 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: P
         meta: s.meta.configured,
         youtube: s.youtube.configured,
         naver: s.naver.configured,
+        tiktok: s.tiktok.configured,
+        kakao: s.kakao.configured,
       });
       await refresh();
       setStep("connect");
@@ -128,14 +167,19 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: P
       toast.error("로그인이 필요합니다.");
       return;
     }
-    window.location.href = `${path}?token=${encodeURIComponent(token)}`;
+    const qs = new URLSearchParams({ token });
+    if (storeCode) qs.set("storeCode", storeCode);
+    window.location.href = `${path}?${qs.toString()}`;
   };
 
-  const allConfigured = status.meta || status.youtube || status.naver;
+  const allConfigured =
+    status.meta || status.youtube || status.naver || status.tiktok || status.kakao;
   const effectiveConfig = {
     meta: status.meta || config.meta,
     youtube: status.youtube || config.youtube,
     naver: status.naver || config.naver,
+    tiktok: status.tiktok || config.tiktok,
+    kakao: status.kakao || config.kakao,
   };
 
   return (
@@ -166,7 +210,14 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: P
           <button
             type="button"
             onClick={() => setStep("connect")}
-            disabled={!allConfigured && !effectiveConfig.meta && !effectiveConfig.youtube && !effectiveConfig.naver}
+            disabled={
+              !allConfigured &&
+              !effectiveConfig.meta &&
+              !effectiveConfig.youtube &&
+              !effectiveConfig.naver &&
+              !effectiveConfig.tiktok &&
+              !effectiveConfig.kakao
+            }
             className={`flex-1 py-2 rounded-lg font-semibold transition disabled:opacity-40 ${
               step === "connect"
                 ? "bg-brand text-primary-foreground"
@@ -220,6 +271,30 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: P
               onIdChange={setNaverClientId}
               onSecretChange={setNaverClientSecret}
             />
+            <OAuthFieldGroup
+              title="TikTok"
+              enabled={tiktokEnabled}
+              onEnabledChange={setTiktokEnabled}
+              configured={status.tiktok}
+              idPlaceholder="TIKTOK_CLIENT_KEY"
+              secretPlaceholder="TIKTOK_CLIENT_SECRET"
+              idValue={tiktokClientKey}
+              secretValue={tiktokClientSecret}
+              onIdChange={setTiktokClientKey}
+              onSecretChange={setTiktokClientSecret}
+            />
+            <OAuthFieldGroup
+              title="카카오톡"
+              enabled={kakaoEnabled}
+              onEnabledChange={setKakaoEnabled}
+              configured={status.kakao}
+              idPlaceholder="KAKAO_REST_API_KEY"
+              secretPlaceholder="KAKAO_CLIENT_SECRET"
+              idValue={kakaoRestKey}
+              secretValue={kakaoClientSecret}
+              onIdChange={setKakaoRestKey}
+              onSecretChange={setKakaoClientSecret}
+            />
 
             <button
               type="button"
@@ -260,6 +335,18 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected }: P
               connected={isConnected("naver_blog")}
               configured={effectiveConfig.naver}
               onConnect={() => void startOAuth("/api/social/naver/oauth/start")}
+            />
+            <ConnectRow
+              label={SOCIAL_PLATFORM_LABELS.tiktok}
+              connected={isConnected("tiktok")}
+              configured={effectiveConfig.tiktok}
+              onConnect={() => void startOAuth("/api/social/tiktok/oauth/start")}
+            />
+            <ConnectRow
+              label={SOCIAL_PLATFORM_LABELS.kakao}
+              connected={isConnected("kakao")}
+              configured={effectiveConfig.kakao}
+              onConnect={() => void startOAuth("/api/social/kakao/oauth/start")}
             />
 
             <button

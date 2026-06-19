@@ -7,6 +7,8 @@ const PLATFORM_GUIDE: Record<SocialPlatform, string> = {
   youtube: "YouTube Shorts/동영상 설명용: 첫 줄 제목(50자), 본문 200~400자, CTA 포함",
   naver_blog:
     "네이버 블로그용: 첫 줄=제목(50자 이내), 이후=본문(800~1500자). HTML 없이 plain text. SEO 키워드 자연스럽게 포함",
+  tiktok: "TikTok 릴스용 100~220자, 트렌디한 톤, 해시태그 3~6개, 세로 영상 URL 필수",
+  kakao: "카카오 채널 메시지용 200~400자, 친근한 안내 톤, CTA 포함",
 };
 
 export async function generateSocialCaption(input: {

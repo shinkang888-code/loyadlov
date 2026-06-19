@@ -8,6 +8,8 @@ import {
   saveMetaOAuthSettingsFn,
   saveNaverOAuthSettingsFn,
   saveYouTubeOAuthSettingsFn,
+  saveTikTokOAuthSettingsFn,
+  saveKakaoOAuthSettingsFn,
 } from "@/lib/social.functions";
 
 export function OAuthSettingsPanel() {
@@ -15,6 +17,8 @@ export function OAuthSettingsPanel() {
   const saveMeta = useServerFn(saveMetaOAuthSettingsFn);
   const saveNaver = useServerFn(saveNaverOAuthSettingsFn);
   const saveYouTube = useServerFn(saveYouTubeOAuthSettingsFn);
+  const saveTikTok = useServerFn(saveTikTokOAuthSettingsFn);
+  const saveKakao = useServerFn(saveKakaoOAuthSettingsFn);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -27,7 +31,19 @@ export function OAuthSettingsPanel() {
   const [naverClientId, setNaverClientId] = useState("");
   const [naverClientSecret, setNaverClientSecret] = useState("");
   const [naverEnabled, setNaverEnabled] = useState(true);
-  const [status, setStatus] = useState({ meta: false, youtube: false, naver: false });
+  const [tiktokClientKey, setTiktokClientKey] = useState("");
+  const [tiktokClientSecret, setTiktokClientSecret] = useState("");
+  const [tiktokEnabled, setTiktokEnabled] = useState(true);
+  const [kakaoRestKey, setKakaoRestKey] = useState("");
+  const [kakaoClientSecret, setKakaoClientSecret] = useState("");
+  const [kakaoEnabled, setKakaoEnabled] = useState(true);
+  const [status, setStatus] = useState({
+    meta: false,
+    youtube: false,
+    naver: false,
+    tiktok: false,
+    kakao: false,
+  });
 
   useEffect(() => {
     void getSettings()
@@ -36,6 +52,8 @@ export function OAuthSettingsPanel() {
           meta: s.meta.configured,
           youtube: s.youtube.configured,
           naver: s.naver.configured,
+          tiktok: s.tiktok.configured,
+          kakao: s.kakao.configured,
         });
       })
       .finally(() => setLoading(false));
@@ -72,6 +90,24 @@ export function OAuthSettingsPanel() {
             },
           },
         }),
+        saveTikTok({
+          data: {
+            settings: {
+              clientKey: tiktokClientKey.trim() || undefined,
+              clientSecret: tiktokClientSecret.trim() || undefined,
+              enabled: tiktokEnabled,
+            },
+          },
+        }),
+        saveKakao({
+          data: {
+            settings: {
+              restApiKey: kakaoRestKey.trim() || undefined,
+              clientSecret: kakaoClientSecret.trim() || undefined,
+              enabled: kakaoEnabled,
+            },
+          },
+        }),
       ]);
       toast.success("OAuth 설정 저장 완료");
       const s = await getSettings();
@@ -79,6 +115,8 @@ export function OAuthSettingsPanel() {
         meta: s.meta.configured,
         youtube: s.youtube.configured,
         naver: s.naver.configured,
+        tiktok: s.tiktok.configured,
+        kakao: s.kakao.configured,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "저장 실패");
@@ -105,6 +143,8 @@ export function OAuthSettingsPanel() {
           <li>Meta (Instagram/Threads): {status.meta ? "✅ 설정됨" : "❌ 미설정"}</li>
           <li>YouTube (Google OAuth): {status.youtube ? "✅ 설정됨" : "❌ 미설정"}</li>
           <li>네이버 블로그: {status.naver ? "✅ 설정됨" : "❌ 미설정"}</li>
+          <li>TikTok: {status.tiktok ? "✅ 설정됨" : "❌ 미설정"}</li>
+          <li>카카오톡: {status.kakao ? "✅ 설정됨" : "❌ 미설정"}</li>
         </ul>
       </div>
 
@@ -171,6 +211,48 @@ export function OAuthSettingsPanel() {
         />
       </div>
 
+      <div className="rounded-2xl bg-card border border-border p-5 space-y-4">
+        <h3 className="text-sm font-semibold">TikTok OAuth (관리자 DB 설정)</h3>
+        <label className="flex items-center gap-2 text-xs">
+          <input type="checkbox" checked={tiktokEnabled} onChange={(e) => setTiktokEnabled(e.target.checked)} />
+          활성화
+        </label>
+        <input
+          value={tiktokClientKey}
+          onChange={(e) => setTiktokClientKey(e.target.value)}
+          placeholder="TIKTOK_CLIENT_KEY"
+          className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm"
+        />
+        <input
+          value={tiktokClientSecret}
+          onChange={(e) => setTiktokClientSecret(e.target.value)}
+          placeholder="TIKTOK_CLIENT_SECRET"
+          type="password"
+          className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm"
+        />
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border p-5 space-y-4">
+        <h3 className="text-sm font-semibold">카카오 OAuth (관리자 DB 설정)</h3>
+        <label className="flex items-center gap-2 text-xs">
+          <input type="checkbox" checked={kakaoEnabled} onChange={(e) => setKakaoEnabled(e.target.checked)} />
+          활성화
+        </label>
+        <input
+          value={kakaoRestKey}
+          onChange={(e) => setKakaoRestKey(e.target.value)}
+          placeholder="KAKAO_REST_API_KEY"
+          className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm"
+        />
+        <input
+          value={kakaoClientSecret}
+          onChange={(e) => setKakaoClientSecret(e.target.value)}
+          placeholder="KAKAO_CLIENT_SECRET"
+          type="password"
+          className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm"
+        />
+      </div>
+
       <button
         onClick={() => void handleSave()}
         disabled={saving}
@@ -181,8 +263,9 @@ export function OAuthSettingsPanel() {
       </button>
 
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        환경 변수(META_APP_ID, GOOGLE_OAUTH_CLIENT_ID, NAVER_OAUTH_CLIENT_ID, CRON_SECRET, SOCIAL_TOKEN_ENCRYPTION_KEY)도
-        지원합니다. 예약 발행 cron: GET /api/cron/social-publish (Authorization: Bearer CRON_SECRET)
+        환경 변수(META_APP_ID, GOOGLE_OAUTH_CLIENT_ID, NAVER_OAUTH_CLIENT_ID, TIKTOK_CLIENT_KEY, KAKAO_REST_API_KEY,
+        CRON_SECRET, SOCIAL_TOKEN_ENCRYPTION_KEY)도 지원합니다. 예약 발행 cron: GET /api/cron/social-publish
+        (Authorization: Bearer CRON_SECRET)
       </p>
     </div>
   );

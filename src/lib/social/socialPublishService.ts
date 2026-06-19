@@ -6,6 +6,8 @@ import { publishToInstagram } from "@/lib/social/instagramPublisher";
 import { publishToThreads } from "@/lib/social/threadsPublisher";
 import { publishToYouTube } from "@/lib/social/youtubePublisher";
 import { publishNaverBlogFromCaption } from "@/lib/social/naverBlogPublisher";
+import { publishToTikTok } from "@/lib/social/tiktokPublisher";
+import { publishToKakao } from "@/lib/social/kakaoPublisher";
 import {
   getSocialAccountForPublish,
   markSocialPostFailed,
@@ -91,6 +93,24 @@ export async function publishSocialPost(
         mediaUrl,
         naverOpts
       );
+      break;
+    }
+    case "tiktok": {
+      result = await publishToTikTok({
+        accessToken: account.accessToken,
+        openId: String(meta.openId ?? account.platform_user_id),
+        caption: post.caption,
+        mediaUrl,
+      });
+      break;
+    }
+    case "kakao": {
+      result = await publishToKakao({
+        accessToken: account.accessToken,
+        caption: post.caption,
+        mediaUrl,
+        channelId: String(meta.channelId ?? meta.kakaoChannelId ?? "") || null,
+      });
       break;
     }
     default:

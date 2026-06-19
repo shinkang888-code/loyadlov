@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { generateContent } from "@/lib/ai.functions";
-import { saveDraft, scheduleDraft, listSchedule, unscheduleSlot, type ScheduleRow } from "@/lib/drafts.functions";
+import { saveDraft, scheduleDraft, listSchedule, unscheduleSlot, getStoreDrivePathFn, type ScheduleRow } from "@/lib/drafts.functions";
 import { streamImage } from "@/lib/streamImage";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -40,6 +40,7 @@ import {
   AlertCircle,
   Clock,
   FolderOpen,
+  Youtube,
 } from "lucide-react";
 import logo from "@/assets/loyard-logo.jpg.asset.json";
 import showcase1 from "@/assets/showcase-1.jpg";
@@ -68,8 +69,10 @@ import {
 import {
   ALL_SOCIAL_PLATFORMS,
   SOCIAL_PLATFORM_LABELS,
+  PLATFORM_HINT,
   type SocialPlatform,
 } from "@/lib/social/types";
+import { computeToneMatchScore, describeToneMatch } from "@/lib/toneAnalysis";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -87,7 +90,7 @@ type Client = {
   store: string;
   industry: string;
   tone: string[];
-  channels: ("ig" | "tt" | "nv" | "kk")[];
+  channels: ("ig" | "tt" | "yt" | "nv" | "kk")[];
   avatar: string;
   status: "active" | "pending" | "needs-auth";
   thisMonth: number;
@@ -101,8 +104,10 @@ function storeToClient(s: StoreSummary, index: number): Client {
   const channels = new Set<Client["channels"][number]>();
   for (const p of s.connectedPlatforms) {
     if (p === "instagram" || p === "threads") channels.add("ig");
-    if (p === "youtube") channels.add("tt");
+    if (p === "tiktok") channels.add("tt");
+    if (p === "youtube") channels.add("yt");
     if (p === "naver_blog") channels.add("nv");
+    if (p === "kakao") channels.add("kk");
   }
   if (s.instagramHandle) channels.add("ig");
   if (s.naverHandle) channels.add("nv");
@@ -112,7 +117,7 @@ function storeToClient(s: StoreSummary, index: number): Client {
     uid: s.storeCode,
     store: s.businessName,
     industry: s.industry,
-    tone: [],
+    tone: s.toneTags,
     channels: [...channels],
     avatar: AVATAR_IMAGES[index % AVATAR_IMAGES.length],
     status: s.status,
@@ -138,6 +143,7 @@ const FALLBACK_CLIENT: Client = {
 const CHANNEL_META = {
   ig: { name: "Instagram", Icon: Instagram, color: "oklch(0.55 0.18 18)" },
   tt: { name: "TikTok", Icon: Music2, color: "oklch(0.22 0.05 265)" },
+  yt: { name: "YouTube", Icon: Youtube, color: "oklch(0.55 0.22 25)" },
   nv: { name: "Naver", Icon: Globe, color: "oklch(0.55 0.16 150)" },
   kk: { name: "Kakao", Icon: MessageCircle, color: "oklch(0.78 0.16 90)" },
 } as const;
@@ -266,6 +272,7 @@ function AdminConsole() {
           <AssetsPanel />
         ) : nav === "channels" ? (
           <SocialPublishPanel
+            storeCode={active.uid !== "—" ? active.uid : undefined}
             storeName={active.store}
             industry={active.industry}
             onRequestOAuthSetup={() => setOauthDialogOpen(true)}
@@ -309,6 +316,7 @@ function AdminConsole() {
         open={oauthDialogOpen}
         onOpenChange={setOauthDialogOpen}
         onConnected={() => void setNav("channels")}
+        storeCode={active.uid !== "—" ? active.uid : undefined}
       />
     </div>
   );
@@ -542,8 +550,10 @@ function Workspace({ client }: { client: Client }) {
   const [hashtags, setHashtags] = useState<string[]>(SAMPLE_TAGS[0]);
   const [keyword, setKeyword] = useState("미나리삼겹살 신메뉴 출시");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState("");
   const [aiModel, setAiModel] = useState<string | null>(null);
   const [publishPlatform, setPublishPlatform] = useState<SocialPlatform>("instagram");
+  const storeCode = client.uid !== "—" ? client.uid : undefined;
 
   return (
     <main className="flex-1 min-w-0 overflow-y-auto">
@@ -616,14 +626,32 @@ function Workspace({ client }: { client: Client }) {
         {tab === "image" && (
           <ImageTab client={client} keyword={keyword} imageUrl={imageUrl} setImageUrl={setImageUrl} />
         )}
-        {tab === "video" && <VideoTab />}
-        {tab === "schedule" && <ScheduleTab client={client} body={body} hashtags={hashtags} imageUrl={imageUrl} aiModel={aiModel} />}
+        {tab === "video" && (
+          <VideoTab
+            client={client}
+            videoUrl={videoUrl}
+            onVideoUrlChange={setVideoUrl}
+            onPlatformChange={setPublishPlatform}
+          />
+        )}
+        {tab === "schedule" && (
+          <ScheduleTab
+            client={client}
+            storeCode={storeCode}
+            body={body}
+            hashtags={hashtags}
+            imageUrl={imageUrl}
+            aiModel={aiModel}
+          />
+        )}
 
         <PublishBar
           client={client}
+          storeCode={storeCode}
           body={body}
           hashtags={hashtags}
           imageUrl={imageUrl}
+          videoUrl={videoUrl}
           aiModel={aiModel}
           platform={publishPlatform}
           onPlatformChange={setPublishPlatform}
@@ -698,6 +726,12 @@ function TextTab({
       setGenerating(false);
     }
   }
+
+  const toneScore = useMemo(
+    () => computeToneMatchScore(body, client.industry, client.tone),
+    [body, client.industry, client.tone]
+  );
+  const toneLabel = client.tone.length ? client.tone.join(" · ") : "감성적 · 신뢰감";
 
   return (
     <div className="grid lg:grid-cols-5 gap-5">
@@ -801,8 +835,9 @@ function TextTab({
             <Bot className="size-3.5" /> AI 톤 분석
           </div>
           <p className="mt-3 text-sm leading-relaxed text-white/90">
-            본문 톤이 <strong className="text-white">감성적 · 신뢰감</strong> 가이드라인과 <strong className="text-white">96%</strong> 일치합니다.
-            "지글지글" 같은 의성어가 몰입도를 높였습니다.
+            본문 톤이 <strong className="text-white">{toneLabel}</strong> 가이드라인과{" "}
+            <strong className="text-white">{toneScore}%</strong> 일치합니다 ({describeToneMatch(toneScore)}).
+            {toneScore >= 70 && body.includes("지글") && " 의성어가 몰입도를 높였습니다."}
           </p>
         </div>
       </div>
@@ -942,12 +977,99 @@ function ImageTab({
 }
 
 /* ----- Video tab ----- */
-function VideoTab() {
+function VideoTab({
+  client,
+  videoUrl,
+  onVideoUrlChange,
+  onPlatformChange,
+}: {
+  client: Client;
+  videoUrl: string;
+  onVideoUrlChange: (v: string) => void;
+  onPlatformChange: (p: SocialPlatform) => void;
+}) {
+  const [target, setTarget] = useState<"tiktok" | "youtube">("tiktok");
+
+  useEffect(() => {
+    onPlatformChange(target === "tiktok" ? "tiktok" : "youtube");
+  }, [target, onPlatformChange]);
+
+  const platform = target === "tiktok" ? "tiktok" : "youtube";
+
   return (
-    <div className="rounded-2xl bg-card border border-border p-10 text-center">
-      <Film className="size-10 mx-auto text-muted-foreground mb-3" />
-      <div className="font-display font-semibold">릴스 / 쇼츠 생성기</div>
-      <p className="text-sm text-muted-foreground mt-1">Sora · Runway 템플릿이 곧 연결됩니다.</p>
+    <div className="grid lg:grid-cols-5 gap-5">
+      <div className="lg:col-span-3 rounded-2xl bg-card border border-border p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold flex items-center gap-2">
+            <Film className="size-4 text-primary" /> 릴스 / 쇼츠 발행 준비
+          </div>
+          <div className="flex gap-1 p-1 rounded-lg bg-secondary border border-border">
+            <button
+              type="button"
+              onClick={() => setTarget("tiktok")}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                target === "tiktok" ? "bg-card shadow-soft" : "text-muted-foreground"
+              }`}
+            >
+              TikTok
+            </button>
+            <button
+              type="button"
+              onClick={() => setTarget("youtube")}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                target === "youtube" ? "bg-card shadow-soft" : "text-muted-foreground"
+              }`}
+            >
+              YouTube Shorts
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-secondary aspect-[9/16] max-h-[420px] grid place-items-center overflow-hidden">
+          {videoUrl.trim() ? (
+            <video src={videoUrl.trim()} controls className="w-full h-full object-cover" />
+          ) : (
+            <div className="text-center p-6 text-xs text-muted-foreground space-y-2">
+              <Film className="size-8 mx-auto opacity-50" />
+              <p>동영상 URL을 입력하면 미리보기가 표시됩니다.</p>
+              <p className="text-[10px]">mp4 · mov · webm 권장</p>
+            </div>
+          )}
+        </div>
+
+        <label className="block text-xs font-semibold text-muted-foreground">동영상 URL</label>
+        <input
+          value={videoUrl}
+          onChange={(e) => onVideoUrlChange(e.target.value)}
+          placeholder="https://storage.example.com/reel.mp4"
+          className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm font-mono"
+        />
+        <p className="text-[11px] text-muted-foreground">{PLATFORM_HINT[platform]}</p>
+      </div>
+
+      <div className="lg:col-span-2 space-y-5">
+        <div className="rounded-2xl bg-card border border-border p-5">
+          <div className="text-sm font-semibold mb-2">{client.store}</div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            본문·해시태그 탭에서 작성한 캡션과 함께 하단 발행 바에서 {SOCIAL_PLATFORM_LABELS[platform]}로 바로
+            게시할 수 있습니다. AI 영상 생성(Sora · Runway)은 추후 연결 예정입니다.
+          </p>
+        </div>
+        <div className="rounded-2xl bg-brand text-primary-foreground p-5">
+          <div className="text-xs font-semibold uppercase tracking-widest text-white/70">체크리스트</div>
+          <ul className="mt-3 space-y-2 text-sm text-white/90">
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0" /> 세로 9:16 · 15–60초 권장
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0" /> 채널 세션에서 {SOCIAL_PLATFORM_LABELS[platform]} OAuth 연결
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="size-3.5 shrink-0" /> 공개 가능한 HTTPS 동영상 URL
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }
@@ -955,12 +1077,14 @@ function VideoTab() {
 /* ----- Schedule tab ----- */
 function ScheduleTab({
   client,
+  storeCode,
   body,
   hashtags,
   imageUrl,
   aiModel,
 }: {
   client: Client;
+  storeCode?: string;
   body: string;
   hashtags: string[];
   imageUrl: string | null;
@@ -988,7 +1112,7 @@ function ScheduleTab({
     try {
       const to = new Date(weekStart);
       to.setDate(to.getDate() + 7);
-      const data = await list({ data: { from: weekStart.toISOString(), to: to.toISOString() } });
+      const data = await list({ data: { from: weekStart.toISOString(), to: to.toISOString(), storeCode } });
       setRows(data);
     } catch (e) {
       // ignore — empty state is fine
@@ -997,7 +1121,7 @@ function ScheduleTab({
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekStart.getTime()]);
+  }, [weekStart.getTime(), storeCode]);
 
   function slotAt(dayIdx: number, hour: number) {
     const d = new Date(weekStart);
@@ -1025,6 +1149,7 @@ function ScheduleTab({
         }
         const draft = await save({
           data: {
+            storeCode,
             title: `${client.store} · ${slotAt(dayIdx, hour).toLocaleDateString("ko-KR")}`,
             body,
             hashtags,
@@ -1035,6 +1160,7 @@ function ScheduleTab({
         });
         await sched({
           data: {
+            storeCode,
             draftId: draft.id,
             channel: "instagram",
             scheduledAt: slotAt(dayIdx, hour).toISOString(),
@@ -1118,17 +1244,21 @@ function ScheduleTab({
 /* ----- Publish bar ----- */
 function PublishBar({
   client,
+  storeCode,
   body,
   hashtags,
   imageUrl,
+  videoUrl,
   aiModel,
   platform,
   onPlatformChange,
 }: {
   client: Client;
+  storeCode?: string;
   body: string;
   hashtags: string[];
   imageUrl: string | null;
+  videoUrl: string;
   aiModel: string | null;
   platform: SocialPlatform;
   onPlatformChange: (p: SocialPlatform) => void;
@@ -1137,10 +1267,19 @@ function PublishBar({
   const [saved, setSaved] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  const [drivePath, setDrivePath] = useState(`/${client.uid}_${client.store}/`);
   const save = useServerFn(saveDraft);
+  const getDrivePath = useServerFn(getStoreDrivePathFn);
   const createPost = useServerFn(createSocialPostFn);
   const publishPost = useServerFn(publishSocialPostFn);
-  const { isConnected } = useSocialAccounts();
+  const { isConnected } = useSocialAccounts(storeCode);
+
+  useEffect(() => {
+    if (!storeCode) return;
+    void getDrivePath({ data: { storeCode } })
+      .then((r: { path: string }) => setDrivePath(r.path))
+      .catch(() => setDrivePath(`/${client.uid}_${client.store}/`));
+  }, [storeCode, client.uid, client.store, getDrivePath]);
 
   function buildCaption() {
     const tagLine = hashtags.length
@@ -1158,6 +1297,7 @@ function PublishBar({
     try {
       await save({
         data: {
+          storeCode,
           title: `${client.store} · ${new Date().toLocaleString("ko-KR")}`,
           body,
           hashtags,
@@ -1188,14 +1328,20 @@ function PublishBar({
     }
     setPublishing(true);
     try {
+      const mediaUrls = videoUrl.trim()
+        ? [videoUrl.trim()]
+        : imageUrl?.trim()
+          ? [imageUrl.trim()]
+          : [];
       const { post } = await createPost({
         data: {
+          storeCode,
           platform,
           caption,
-          mediaUrls: imageUrl?.trim() ? [imageUrl.trim()] : [],
+          mediaUrls,
         },
       });
-      await publishPost({ data: { postId: post.id } });
+      await publishPost({ data: { postId: post.id, storeCode } });
       setPublished(true);
       toast.success(`${SOCIAL_PLATFORM_LABELS[platform]} 발행 완료!`);
       setTimeout(() => setPublished(false), 2200);
@@ -1210,7 +1356,7 @@ function PublishBar({
     <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-4 bg-card/95 backdrop-blur border-t border-border flex flex-wrap items-center gap-3">
       <div className="text-xs text-muted-foreground mr-auto flex flex-wrap items-center gap-2">
         <span>
-          구글드라이브: <span className="font-mono text-foreground/80">/{client.uid}_{client.store}/</span>
+          구글드라이브: <span className="font-mono text-foreground/80">{drivePath}</span>
         </span>
         <select
           value={platform}
@@ -1249,8 +1395,10 @@ function PublishBar({
 const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, typeof Instagram> = {
   instagram: Instagram,
   threads: MessageCircle,
-  youtube: Film,
+  youtube: Youtube,
   naver_blog: Globe,
+  tiktok: Music2,
+  kakao: MessageCircle,
 };
 
 function AiPanel({
@@ -1262,7 +1410,7 @@ function AiPanel({
   storeCode?: string;
   onConnectChannels: () => void;
 }) {
-  const { accounts, isConnected, loading: accountsLoading } = useSocialAccounts();
+  const { accounts, isConnected, loading: accountsLoading } = useSocialAccounts(storeCode);
   const listQueue = useServerFn(listQueueFn);
   const listActivity = useServerFn(listActivityFn);
 

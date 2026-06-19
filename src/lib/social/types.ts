@@ -1,6 +1,12 @@
 import type { Json } from "@/integrations/supabase/types";
 
-export type SocialPlatform = "instagram" | "threads" | "youtube" | "naver_blog";
+export type SocialPlatform =
+  | "instagram"
+  | "threads"
+  | "youtube"
+  | "naver_blog"
+  | "tiktok"
+  | "kakao";
 
 export type SocialPostStatus = "draft" | "scheduled" | "published" | "failed";
 
@@ -74,6 +80,8 @@ export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
   threads: "Threads",
   youtube: "YouTube",
   naver_blog: "네이버 블로그",
+  tiktok: "TikTok",
+  kakao: "카카오톡",
 };
 
 export const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, string> = {
@@ -81,6 +89,8 @@ export const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, string> = {
   threads: "🧵",
   youtube: "▶️",
   naver_blog: "📝",
+  tiktok: "🎵",
+  kakao: "💬",
 };
 
 export const ALL_SOCIAL_PLATFORMS: SocialPlatform[] = [
@@ -88,4 +98,15 @@ export const ALL_SOCIAL_PLATFORMS: SocialPlatform[] = [
   "threads",
   "youtube",
   "naver_blog",
+  "tiktok",
+  "kakao",
 ];
+
+export const PLATFORM_HINT: Record<SocialPlatform, string> = {
+  instagram: "이미지 또는 동영상 URL 필수",
+  threads: "텍스트만 가능, 이미지/동영상 URL 선택",
+  youtube: "동영상 URL(mp4/mov/webm) 필수",
+  naver_blog: "첫 줄=제목, 이하=본문. 이미지 URL 선택",
+  tiktok: "동영상 URL(mp4/mov/webm) 필수",
+  kakao: "카카오톡 채널 메시지 · 이미지 URL 선택",
+};

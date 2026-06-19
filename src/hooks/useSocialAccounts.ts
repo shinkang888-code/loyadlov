@@ -3,25 +3,39 @@ import { useServerFn } from "@tanstack/react-start";
 import { listSocialAccountsFn } from "@/lib/social.functions";
 import type { SocialAccountPublic } from "@/lib/social/types";
 
-export function useSocialAccounts() {
+type OAuthConfig = {
+  meta: boolean;
+  youtube: boolean;
+  naver: boolean;
+  tiktok: boolean;
+  kakao: boolean;
+};
+
+export function useSocialAccounts(storeCode?: string) {
   const listAccounts = useServerFn(listSocialAccountsFn);
   const [accounts, setAccounts] = useState<SocialAccountPublic[]>([]);
-  const [config, setConfig] = useState({ meta: false, youtube: false, naver: false });
+  const [config, setConfig] = useState<OAuthConfig>({
+    meta: false,
+    youtube: false,
+    naver: false,
+    tiktok: false,
+    kakao: false,
+  });
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listAccounts();
-      const data = res as { accounts: SocialAccountPublic[]; config: typeof config };
+      const res = await listAccounts({ data: { storeCode } });
+      const data = res as { accounts: SocialAccountPublic[]; config: OAuthConfig };
       setAccounts(data.accounts ?? []);
-      setConfig(data.config ?? { meta: false, youtube: false, naver: false });
+      setConfig(data.config ?? { meta: false, youtube: false, naver: false, tiktok: false, kakao: false });
     } catch {
       setAccounts([]);
     } finally {
       setLoading(false);
     }
-  }, [listAccounts]);
+  }, [listAccounts, storeCode]);
 
   useEffect(() => {
     void refresh();

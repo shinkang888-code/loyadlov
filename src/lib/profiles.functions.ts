@@ -11,6 +11,7 @@ export type StoreSummary = {
   displayName: string | null;
   instagramHandle: string | null;
   naverHandle: string | null;
+  toneTags: string[];
   onboardedAt: string | null;
   memberCount: number;
   publishedThisMonth: number;
@@ -19,6 +20,30 @@ export type StoreSummary = {
   status: "active" | "pending" | "needs-auth";
   plan: string;
 };
+
+function parseToneTags(snsChannels: unknown): string[] {
+  if (!snsChannels || typeof snsChannels !== "object" || Array.isArray(snsChannels)) {
+    return ["감성적", "신뢰감"];
+  }
+  const root = snsChannels as Record<string, unknown>;
+  const fromArr = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0) : [];
+  const tags = [
+    ...fromArr(root.tone_tags),
+    ...fromArr(root.tones),
+    ...fromArr(root.toneTags),
+  ];
+  if (typeof root.tone === "string" && root.tone.trim()) tags.push(root.tone.trim());
+  for (const val of Object.values(root)) {
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      const ch = val as Record<string, unknown>;
+      tags.push(...fromArr(ch.tone), ...fromArr(ch.tone_tags));
+      if (typeof ch.tone === "string" && ch.tone.trim()) tags.push(ch.tone.trim());
+    }
+  }
+  const uniq = [...new Set(tags.map((t) => t.replace(/^#/, "").trim()).filter(Boolean))];
+  return uniq.length ? uniq.slice(0, 8) : ["감성적", "신뢰감"];
+}
 
 export type MemberRow = {
   id: string;
@@ -121,7 +146,7 @@ export const listStoresFn = createServerFn({ method: "POST" })
     let profileQuery = supabase
       .from("profiles")
       .select(
-        "store_code, business_name, industry, display_name, instagram_handle, naver_handle, onboarded_at"
+        "store_code, business_name, industry, display_name, instagram_handle, naver_handle, sns_channels, onboarded_at"
       )
       .not("store_code", "is", null);
 
@@ -196,6 +221,7 @@ export const listStoresFn = createServerFn({ method: "POST" })
         displayName: p.display_name,
         instagramHandle: p.instagram_handle,
         naverHandle: p.naver_handle,
+        toneTags: parseToneTags(p.sns_channels),
         onboardedAt: p.onboarded_at,
         memberCount: members.filter((m) => m.store_code === code).length,
         publishedThisMonth,

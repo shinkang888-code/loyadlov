@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildMetaOAuthUrl } from "@/lib/social/metaOAuth";
 import { isMetaOAuthConfigured } from "@/lib/social/socialAccountServer";
+import { resolveOAuthStoreCode } from "@/lib/oauthStore.server";
 
 export const Route = createFileRoute("/api/social/meta/oauth/start")({
   server: {
@@ -21,13 +22,7 @@ export const Route = createFileRoute("/api/social/meta/oauth/start")({
           return new Response("Meta OAuth not configured", { status: 503 });
         }
 
-        const { data: profile } = await supabaseAdmin
-          .from("profiles")
-          .select("store_code")
-          .eq("id", userId)
-          .maybeSingle();
-
-        const storeCode = profile?.store_code?.trim();
+        const storeCode = await resolveOAuthStoreCode(userId, url.searchParams.get("storeCode"));
         if (!storeCode) return new Response("Store code required", { status: 400 });
 
         const origin = url.origin;

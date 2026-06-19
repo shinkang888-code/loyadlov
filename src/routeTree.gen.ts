@@ -17,10 +17,14 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as ApiCronSocialPublishRouteImport } from './routes/api/cron/social-publish'
 import { Route as ApiSocialYoutubeOauthStartRouteImport } from './routes/api/social/youtube/oauth/start'
 import { Route as ApiSocialYoutubeOauthCallbackRouteImport } from './routes/api/social/youtube/oauth/callback'
+import { Route as ApiSocialTiktokOauthStartRouteImport } from './routes/api/social/tiktok/oauth/start'
+import { Route as ApiSocialTiktokOauthCallbackRouteImport } from './routes/api/social/tiktok/oauth/callback'
 import { Route as ApiSocialNaverOauthStartRouteImport } from './routes/api/social/naver/oauth/start'
 import { Route as ApiSocialNaverOauthCallbackRouteImport } from './routes/api/social/naver/oauth/callback'
 import { Route as ApiSocialMetaOauthStartRouteImport } from './routes/api/social/meta/oauth/start'
 import { Route as ApiSocialMetaOauthCallbackRouteImport } from './routes/api/social/meta/oauth/callback'
+import { Route as ApiSocialKakaoOauthStartRouteImport } from './routes/api/social/kakao/oauth/start'
+import { Route as ApiSocialKakaoOauthCallbackRouteImport } from './routes/api/social/kakao/oauth/callback'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -63,6 +67,18 @@ const ApiSocialYoutubeOauthCallbackRoute =
     path: '/api/social/youtube/oauth/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiSocialTiktokOauthStartRoute =
+  ApiSocialTiktokOauthStartRouteImport.update({
+    id: '/api/social/tiktok/oauth/start',
+    path: '/api/social/tiktok/oauth/start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiSocialTiktokOauthCallbackRoute =
+  ApiSocialTiktokOauthCallbackRouteImport.update({
+    id: '/api/social/tiktok/oauth/callback',
+    path: '/api/social/tiktok/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiSocialNaverOauthStartRoute =
   ApiSocialNaverOauthStartRouteImport.update({
     id: '/api/social/naver/oauth/start',
@@ -86,6 +102,18 @@ const ApiSocialMetaOauthCallbackRoute =
     path: '/api/social/meta/oauth/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiSocialKakaoOauthStartRoute =
+  ApiSocialKakaoOauthStartRouteImport.update({
+    id: '/api/social/kakao/oauth/start',
+    path: '/api/social/kakao/oauth/start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiSocialKakaoOauthCallbackRoute =
+  ApiSocialKakaoOauthCallbackRouteImport.update({
+    id: '/api/social/kakao/oauth/callback',
+    path: '/api/social/kakao/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -93,10 +121,14 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
+  '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
   '/api/social/meta/oauth/start': typeof ApiSocialMetaOauthStartRoute
   '/api/social/naver/oauth/callback': typeof ApiSocialNaverOauthCallbackRoute
   '/api/social/naver/oauth/start': typeof ApiSocialNaverOauthStartRoute
+  '/api/social/tiktok/oauth/callback': typeof ApiSocialTiktokOauthCallbackRoute
+  '/api/social/tiktok/oauth/start': typeof ApiSocialTiktokOauthStartRoute
   '/api/social/youtube/oauth/callback': typeof ApiSocialYoutubeOauthCallbackRoute
   '/api/social/youtube/oauth/start': typeof ApiSocialYoutubeOauthStartRoute
 }
@@ -106,10 +138,14 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
+  '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
   '/api/social/meta/oauth/start': typeof ApiSocialMetaOauthStartRoute
   '/api/social/naver/oauth/callback': typeof ApiSocialNaverOauthCallbackRoute
   '/api/social/naver/oauth/start': typeof ApiSocialNaverOauthStartRoute
+  '/api/social/tiktok/oauth/callback': typeof ApiSocialTiktokOauthCallbackRoute
+  '/api/social/tiktok/oauth/start': typeof ApiSocialTiktokOauthStartRoute
   '/api/social/youtube/oauth/callback': typeof ApiSocialYoutubeOauthCallbackRoute
   '/api/social/youtube/oauth/start': typeof ApiSocialYoutubeOauthStartRoute
 }
@@ -121,10 +157,14 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
+  '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
   '/api/social/meta/oauth/start': typeof ApiSocialMetaOauthStartRoute
   '/api/social/naver/oauth/callback': typeof ApiSocialNaverOauthCallbackRoute
   '/api/social/naver/oauth/start': typeof ApiSocialNaverOauthStartRoute
+  '/api/social/tiktok/oauth/callback': typeof ApiSocialTiktokOauthCallbackRoute
+  '/api/social/tiktok/oauth/start': typeof ApiSocialTiktokOauthStartRoute
   '/api/social/youtube/oauth/callback': typeof ApiSocialYoutubeOauthCallbackRoute
   '/api/social/youtube/oauth/start': typeof ApiSocialYoutubeOauthStartRoute
 }
@@ -136,10 +176,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/generate-image'
     | '/api/cron/social-publish'
+    | '/api/social/kakao/oauth/callback'
+    | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
     | '/api/social/meta/oauth/start'
     | '/api/social/naver/oauth/callback'
     | '/api/social/naver/oauth/start'
+    | '/api/social/tiktok/oauth/callback'
+    | '/api/social/tiktok/oauth/start'
     | '/api/social/youtube/oauth/callback'
     | '/api/social/youtube/oauth/start'
   fileRoutesByTo: FileRoutesByTo
@@ -149,10 +193,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/generate-image'
     | '/api/cron/social-publish'
+    | '/api/social/kakao/oauth/callback'
+    | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
     | '/api/social/meta/oauth/start'
     | '/api/social/naver/oauth/callback'
     | '/api/social/naver/oauth/start'
+    | '/api/social/tiktok/oauth/callback'
+    | '/api/social/tiktok/oauth/start'
     | '/api/social/youtube/oauth/callback'
     | '/api/social/youtube/oauth/start'
   id:
@@ -163,10 +211,14 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/api/generate-image'
     | '/api/cron/social-publish'
+    | '/api/social/kakao/oauth/callback'
+    | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
     | '/api/social/meta/oauth/start'
     | '/api/social/naver/oauth/callback'
     | '/api/social/naver/oauth/start'
+    | '/api/social/tiktok/oauth/callback'
+    | '/api/social/tiktok/oauth/start'
     | '/api/social/youtube/oauth/callback'
     | '/api/social/youtube/oauth/start'
   fileRoutesById: FileRoutesById
@@ -177,10 +229,14 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ApiGenerateImageRoute: typeof ApiGenerateImageRoute
   ApiCronSocialPublishRoute: typeof ApiCronSocialPublishRoute
+  ApiSocialKakaoOauthCallbackRoute: typeof ApiSocialKakaoOauthCallbackRoute
+  ApiSocialKakaoOauthStartRoute: typeof ApiSocialKakaoOauthStartRoute
   ApiSocialMetaOauthCallbackRoute: typeof ApiSocialMetaOauthCallbackRoute
   ApiSocialMetaOauthStartRoute: typeof ApiSocialMetaOauthStartRoute
   ApiSocialNaverOauthCallbackRoute: typeof ApiSocialNaverOauthCallbackRoute
   ApiSocialNaverOauthStartRoute: typeof ApiSocialNaverOauthStartRoute
+  ApiSocialTiktokOauthCallbackRoute: typeof ApiSocialTiktokOauthCallbackRoute
+  ApiSocialTiktokOauthStartRoute: typeof ApiSocialTiktokOauthStartRoute
   ApiSocialYoutubeOauthCallbackRoute: typeof ApiSocialYoutubeOauthCallbackRoute
   ApiSocialYoutubeOauthStartRoute: typeof ApiSocialYoutubeOauthStartRoute
 }
@@ -243,6 +299,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSocialYoutubeOauthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/social/tiktok/oauth/start': {
+      id: '/api/social/tiktok/oauth/start'
+      path: '/api/social/tiktok/oauth/start'
+      fullPath: '/api/social/tiktok/oauth/start'
+      preLoaderRoute: typeof ApiSocialTiktokOauthStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/social/tiktok/oauth/callback': {
+      id: '/api/social/tiktok/oauth/callback'
+      path: '/api/social/tiktok/oauth/callback'
+      fullPath: '/api/social/tiktok/oauth/callback'
+      preLoaderRoute: typeof ApiSocialTiktokOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/social/naver/oauth/start': {
       id: '/api/social/naver/oauth/start'
       path: '/api/social/naver/oauth/start'
@@ -271,6 +341,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSocialMetaOauthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/social/kakao/oauth/start': {
+      id: '/api/social/kakao/oauth/start'
+      path: '/api/social/kakao/oauth/start'
+      fullPath: '/api/social/kakao/oauth/start'
+      preLoaderRoute: typeof ApiSocialKakaoOauthStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/social/kakao/oauth/callback': {
+      id: '/api/social/kakao/oauth/callback'
+      path: '/api/social/kakao/oauth/callback'
+      fullPath: '/api/social/kakao/oauth/callback'
+      preLoaderRoute: typeof ApiSocialKakaoOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -291,10 +375,14 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ApiGenerateImageRoute: ApiGenerateImageRoute,
   ApiCronSocialPublishRoute: ApiCronSocialPublishRoute,
+  ApiSocialKakaoOauthCallbackRoute: ApiSocialKakaoOauthCallbackRoute,
+  ApiSocialKakaoOauthStartRoute: ApiSocialKakaoOauthStartRoute,
   ApiSocialMetaOauthCallbackRoute: ApiSocialMetaOauthCallbackRoute,
   ApiSocialMetaOauthStartRoute: ApiSocialMetaOauthStartRoute,
   ApiSocialNaverOauthCallbackRoute: ApiSocialNaverOauthCallbackRoute,
   ApiSocialNaverOauthStartRoute: ApiSocialNaverOauthStartRoute,
+  ApiSocialTiktokOauthCallbackRoute: ApiSocialTiktokOauthCallbackRoute,
+  ApiSocialTiktokOauthStartRoute: ApiSocialTiktokOauthStartRoute,
   ApiSocialYoutubeOauthCallbackRoute: ApiSocialYoutubeOauthCallbackRoute,
   ApiSocialYoutubeOauthStartRoute: ApiSocialYoutubeOauthStartRoute,
 }

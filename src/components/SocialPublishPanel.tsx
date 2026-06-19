@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   ALL_SOCIAL_PLATFORMS,
   SOCIAL_PLATFORM_LABELS,
+  PLATFORM_HINT,
   type NaverBlogPostOptions,
   type SocialPlatform,
   type SocialPostPublic,
@@ -42,21 +43,21 @@ const STATUS_LABEL: Record<SocialPostStatus, string> = {
   failed: "실패",
 };
 
-const PLATFORM_HINT: Record<SocialPlatform, string> = {
-  instagram: "이미지 또는 동영상 URL 필수",
-  threads: "텍스트만 가능, 이미지/동영상 URL 선택",
-  youtube: "동영상 URL(mp4/mov/webm) 필수",
-  naver_blog: "첫 줄=제목, 이하=본문. 이미지 URL 선택",
-};
-
 type Props = {
+  storeCode?: string;
   storeName?: string;
   industry?: string;
   onPublishSuccess?: () => void;
   onRequestOAuthSetup?: () => void;
 };
 
-export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRequestOAuthSetup }: Props) {
+export function SocialPublishPanel({
+  storeCode,
+  storeName,
+  industry,
+  onPublishSuccess,
+  onRequestOAuthSetup,
+}: Props) {
   const listPosts = useServerFn(listSocialPostsFn);
   const createPost = useServerFn(createSocialPostFn);
   const publishPost = useServerFn(publishSocialPostFn);
@@ -64,7 +65,7 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRe
   const disconnect = useServerFn(disconnectSocialAccountFn);
   const aiDraft = useServerFn(generateSocialAiDraftFn);
   const naverCats = useServerFn(listNaverCategoriesFn);
-  const { accounts, config, loading, refresh, isConnected } = useSocialAccounts();
+  const { accounts, config, loading, refresh, isConnected } = useSocialAccounts(storeCode);
 
   const [posts, setPosts] = useState<SocialPostPublic[]>([]);
   const [saving, setSaving] = useState(false);
@@ -82,12 +83,12 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRe
 
   const loadPosts = useCallback(async () => {
     try {
-      const post = await listPosts();
+      const post = await listPosts({ data: { storeCode } });
       setPosts((post as { posts: SocialPostPublic[] }).posts ?? []);
     } catch {
       toast.error("발행 기록을 불러오지 못했습니다.");
     }
-  }, [listPosts]);
+  }, [listPosts, storeCode]);
 
   const loadData = useCallback(async () => {
     await Promise.all([refresh(), loadPosts()]);
@@ -119,14 +120,14 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRe
 
   useEffect(() => {
     if (platform !== "naver_blog") return;
-    void naverCats()
+    void naverCats({ data: { storeCode } })
       .then((d) => {
         const cats = d.categories ?? [];
         setNaverCategories(cats);
         if (cats[0] && naverCategoryNo === "") setNaverCategoryNo(cats[0].categoryNo);
       })
       .catch(() => {});
-  }, [platform, naverCategoryNo, naverCats]);
+  }, [platform, naverCategoryNo, naverCats, storeCode]);
 
   const connectedForPlatform = isConnected(platform);
 
@@ -142,12 +143,14 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRe
       toast.error("로그인이 필요합니다.");
       return;
     }
-    window.location.href = `${path}?token=${encodeURIComponent(token)}`;
+    const qs = new URLSearchParams({ token });
+    if (storeCode) qs.set("storeCode", storeCode);
+    window.location.href = `${path}?${qs.toString()}`;
   };
 
   const handleDisconnect = async (id: string) => {
     try {
-      await disconnect({ data: { accountId: id } });
+      await disconnect({ data: { accountId: id, storeCode } });
       toast.success("연결 해제됨");
       void loadData();
     } catch {
@@ -195,6 +198,7 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRe
 
       const { post } = await createPost({
         data: {
+          storeCode,
           platform,
           caption,
           mediaUrls: mediaUrl.trim() ? [mediaUrl.trim()] : [],
@@ -204,7 +208,7 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRe
       });
 
       if (immediate || !scheduledAt) {
-        await publishPost({ data: { postId: post.id } });
+        await publishPost({ data: { postId: post.id, storeCode } });
         toast.success("발행 완료!");
         onPublishSuccess?.();
       } else {
@@ -288,7 +292,19 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRe
           >
             네이버 블로그
           </button>
-          {!config.meta && !config.youtube && !config.naver && (
+          <button
+            onClick={() => void startOAuth("/api/social/tiktok/oauth/start", config.tiktok)}
+            className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-xs font-semibold"
+          >
+            TikTok
+          </button>
+          <button
+            onClick={() => void startOAuth("/api/social/kakao/oauth/start", config.kakao)}
+            className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-xs font-semibold"
+          >
+            카카오톡
+          </button>
+          {!config.meta && !config.youtube && !config.naver && !config.tiktok && !config.kakao && (
             <button
               onClick={() => onRequestOAuthSetup?.()}
               className="px-3 py-1.5 rounded-lg bg-accent-gradient text-accent-foreground text-xs font-bold"

@@ -4,6 +4,8 @@ import { encryptToken, decryptToken } from "@/lib/social/tokenCrypto";
 import { isMetaOAuthEnabled } from "@/lib/social/metaOAuthSettings";
 import { isYouTubeOAuthEnabled } from "@/lib/social/youtubeOAuthSettings";
 import { isNaverOAuthEnabled } from "@/lib/social/naverOAuthSettings";
+import { isTikTokOAuthEnabled } from "@/lib/social/tiktokOAuthSettings";
+import { isKakaoOAuthEnabled } from "@/lib/social/kakaoOAuthSettings";
 import type {
   SocialAccountPublic,
   SocialAccountRow,
@@ -279,6 +281,14 @@ export async function isYouTubeOAuthConfigured(): Promise<boolean> {
 
 export async function isNaverOAuthConfigured(): Promise<boolean> {
   return isNaverOAuthEnabled();
+}
+
+export async function isTikTokOAuthConfigured(): Promise<boolean> {
+  return isTikTokOAuthEnabled();
+}
+
+export async function isKakaoOAuthConfigured(): Promise<boolean> {
+  return isKakaoOAuthEnabled();
 }
 
 export { toPostPublic };
