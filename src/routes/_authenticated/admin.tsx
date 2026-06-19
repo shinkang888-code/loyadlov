@@ -49,6 +49,7 @@ import { LeadsPanel } from "@/components/LeadsPanel";
 import { AssetsPanel } from "@/components/AssetsPanel";
 import { SocialPublishPanel } from "@/components/SocialPublishPanel";
 import { OAuthSettingsPanel } from "@/components/OAuthSettingsPanel";
+import { ChannelOAuthConnectDialog } from "@/components/ChannelOAuthConnectDialog";
 import { useSocialAccounts } from "@/hooks/useSocialAccounts";
 import {
   createSocialPostFn,
@@ -140,6 +141,21 @@ function AdminConsole() {
     "workspace" | "queue" | "channels" | "leads" | "assets" | "members" | "analytics" | "settings"
   >(initialTab && ["workspace", "queue", "channels", "leads", "assets", "members", "analytics", "settings"].includes(initialTab) ? initialTab : "workspace");
 
+  const [oauthDialogOpen, setOauthDialogOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("setup") === "oauth";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("setup") !== "oauth") return;
+    setOauthDialogOpen(true);
+    params.delete("setup");
+    const qs = params.toString();
+    window.history.replaceState({}, "", `/admin${qs ? `?${qs}` : ""}`);
+  }, []);
+
   const filtered = useMemo(
     () =>
       CLIENTS.filter(
@@ -162,17 +178,26 @@ function AdminConsole() {
         ) : nav === "assets" ? (
           <AssetsPanel />
         ) : nav === "channels" ? (
-          <SocialPublishPanel storeName={active.store} industry={active.industry} />
+          <SocialPublishPanel
+            storeName={active.store}
+            industry={active.industry}
+            onRequestOAuthSetup={() => setOauthDialogOpen(true)}
+          />
         ) : nav === "settings" ? (
           <OAuthSettingsPanel />
         ) : (
           <div className="flex-1 flex min-h-0">
             <ClientList clients={filtered} selectedUid={selectedUid} onSelect={setSelectedUid} />
             <Workspace client={active} />
-            <AiPanel client={active} />
+            <AiPanel client={active} onConnectChannels={() => setOauthDialogOpen(true)} />
           </div>
         )}
       </div>
+      <ChannelOAuthConnectDialog
+        open={oauthDialogOpen}
+        onOpenChange={setOauthDialogOpen}
+        onConnected={() => void setNav("channels")}
+      />
     </div>
   );
 }
@@ -1102,8 +1127,10 @@ const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, typeof Instagram> = {
   naver_blog: Globe,
 };
 
-function AiPanel({ client }: { client: Client }) {
+function AiPanel({ client, onConnectChannels }: { client: Client; onConnectChannels: () => void }) {
   const { accounts, isConnected, loading: accountsLoading } = useSocialAccounts();
+
+  const hasDisconnected = ALL_SOCIAL_PLATFORMS.some((p) => !isConnected(p));
 
   return (
     <aside className="w-[340px] shrink-0 bg-card border-l border-border flex flex-col">
@@ -1153,13 +1180,14 @@ function AiPanel({ client }: { client: Client }) {
               })
             )}
           </div>
-          {!accountsLoading && accounts.length === 0 && (
-            <a
-              href="/admin?tab=channels"
+          {!accountsLoading && hasDisconnected && (
+            <button
+              type="button"
+              onClick={onConnectChannels}
               className="mt-3 w-full h-9 rounded-lg bg-accent-gradient text-accent-foreground text-xs font-bold shadow-crimson grid place-items-center"
             >
               채널 OAuth 연결하기
-            </a>
+            </button>
           )}
         </Card>
 

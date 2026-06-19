@@ -11,7 +11,7 @@ import {
   resetSocialPostForRetry,
   resolveStoreCodeForUser,
 } from "@/lib/social/socialAccountServer";
-import { isGoogleOAuthConfigured } from "@/lib/googleOAuth.server";
+import { isGoogleOAuthConfiguredAsync } from "@/lib/googleOAuth.server";
 import { generateSocialCaption } from "@/lib/social/socialAiDraft";
 import { publishSocialPostById } from "@/lib/social/socialPublishService";
 import { getNaverBlogCategoriesForStore } from "@/lib/social/naverCategories.server";
@@ -25,6 +25,11 @@ import {
   saveNaverOAuthSettings,
   type NaverOAuthSettings,
 } from "@/lib/social/naverOAuthSettings";
+import {
+  getYouTubeOAuthCredentials,
+  saveYouTubeOAuthSettings,
+  type YouTubeOAuthSettings,
+} from "@/lib/social/youtubeOAuthSettings";
 import type { SocialPlatform } from "@/lib/social/types";
 
 const Platform = z.enum(["instagram", "threads", "youtube", "naver_blog"]);
@@ -42,7 +47,7 @@ export const listSocialAccountsFn = createServerFn({ method: "POST" })
     const accounts = await listSocialAccounts(storeCode);
     const [meta, youtube, naver] = await Promise.all([
       isMetaOAuthConfigured(),
-      isGoogleOAuthConfigured(),
+      isGoogleOAuthConfiguredAsync(),
       isNaverOAuthConfigured(),
     ]);
     return { accounts, config: { meta, youtube, naver } };
@@ -150,11 +155,18 @@ export const listNaverCategoriesFn = createServerFn({ method: "POST" })
 export const getOAuthSettingsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const [meta, naver] = await Promise.all([getMetaOAuthCredentials(), getNaverOAuthCredentials()]);
+    const [meta, naver, youtube] = await Promise.all([
+      getMetaOAuthCredentials(),
+      getNaverOAuthCredentials(),
+      getYouTubeOAuthCredentials(),
+    ]);
     return {
       meta: { configured: Boolean(meta.appId && meta.appSecret), source: meta.source },
       naver: { configured: Boolean(naver.clientId && naver.clientSecret), source: naver.source },
-      youtube: { configured: isGoogleOAuthConfigured() },
+      youtube: {
+        configured: Boolean(youtube.clientId && youtube.clientSecret),
+        source: youtube.source,
+      },
     };
   });
 
@@ -173,6 +185,15 @@ export const saveNaverOAuthSettingsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const ok = await saveNaverOAuthSettings(data.settings);
     if (!ok) throw new Error("Naver OAuth 설정 저장 실패");
+    return { ok: true };
+  });
+
+export const saveYouTubeOAuthSettingsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ settings: z.custom<YouTubeOAuthSettings>() }).parse(input))
+  .handler(async ({ data }) => {
+    const ok = await saveYouTubeOAuthSettings(data.settings);
+    if (!ok) throw new Error("YouTube OAuth 설정 저장 실패");
     return { ok: true };
   });
 

@@ -59,6 +59,7 @@ export async function exchangeNaverCode(
     client_secret: creds.clientSecret,
     code,
     state,
+    redirect_uri: getNaverRedirectUri(origin),
   });
 
   const res = await fetch(`${NAVER_TOKEN}?${params.toString()}`);

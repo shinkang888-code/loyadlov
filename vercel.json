@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": ".vercel/output",
-  "framework": null
+  "framework": null,
+  "crons": [
+    {
+      "path": "/api/cron/social-publish",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

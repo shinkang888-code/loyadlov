@@ -17,7 +17,7 @@ export const Route = createFileRoute("/api/social/youtube/oauth/start")({
         const userId = claims.claims.sub as string;
         const email = (claims.claims.email as string) ?? userId;
 
-        if (!isYouTubeOAuthConfigured()) {
+        if (!(await isYouTubeOAuthConfigured())) {
           return new Response("YouTube OAuth not configured", { status: 503 });
         }
 

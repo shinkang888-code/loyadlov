@@ -53,9 +53,10 @@ type Props = {
   storeName?: string;
   industry?: string;
   onPublishSuccess?: () => void;
+  onRequestOAuthSetup?: () => void;
 };
 
-export function SocialPublishPanel({ storeName, industry, onPublishSuccess }: Props) {
+export function SocialPublishPanel({ storeName, industry, onPublishSuccess, onRequestOAuthSetup }: Props) {
   const listPosts = useServerFn(listSocialPostsFn);
   const createPost = useServerFn(createSocialPostFn);
   const publishPost = useServerFn(publishSocialPostFn);
@@ -129,7 +130,12 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess }: Pr
 
   const connectedForPlatform = isConnected(platform);
 
-  const startOAuth = async (path: string) => {
+  const startOAuth = async (path: string, configured: boolean) => {
+    if (!configured) {
+      toast.info("먼저 OAuth API 자격증명을 설정해주세요.");
+      onRequestOAuthSetup?.();
+      return;
+    }
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
     if (!token) {
@@ -265,26 +271,31 @@ export function SocialPublishPanel({ storeName, industry, onPublishSuccess }: Pr
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
-            disabled={!config.meta}
-            onClick={() => void startOAuth("/api/social/meta/oauth/start")}
-            className="px-3 py-1.5 rounded-lg bg-brand text-primary-foreground text-xs font-semibold disabled:opacity-40"
+            onClick={() => void startOAuth("/api/social/meta/oauth/start", config.meta)}
+            className="px-3 py-1.5 rounded-lg bg-brand text-primary-foreground text-xs font-semibold"
           >
             Meta (IG+Threads)
           </button>
           <button
-            disabled={!config.youtube}
-            onClick={() => void startOAuth("/api/social/youtube/oauth/start")}
-            className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-xs font-semibold disabled:opacity-40"
+            onClick={() => void startOAuth("/api/social/youtube/oauth/start", config.youtube)}
+            className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-xs font-semibold"
           >
             YouTube
           </button>
           <button
-            disabled={!config.naver}
-            onClick={() => void startOAuth("/api/social/naver/oauth/start")}
-            className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-xs font-semibold disabled:opacity-40"
+            onClick={() => void startOAuth("/api/social/naver/oauth/start", config.naver)}
+            className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-xs font-semibold"
           >
             네이버 블로그
           </button>
+          {!config.meta && !config.youtube && !config.naver && (
+            <button
+              onClick={() => onRequestOAuthSetup?.()}
+              className="px-3 py-1.5 rounded-lg bg-accent-gradient text-accent-foreground text-xs font-bold"
+            >
+              API 설정하기
+            </button>
+          )}
           <button onClick={() => void loadData()} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground inline-flex items-center gap-1">
             <RefreshCw className="size-3" /> 새로고침
           </button>

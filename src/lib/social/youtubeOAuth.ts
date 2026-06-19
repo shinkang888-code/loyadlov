@@ -1,5 +1,6 @@
-import { createGoogleOAuthClient, isGoogleOAuthConfigured } from "@/lib/googleOAuth.server";
+import { createGoogleOAuthClient } from "@/lib/googleOAuth.server";
 import { signSocialOAuthState } from "@/lib/social/oauthState";
+import { isYouTubeOAuthEnabled } from "@/lib/social/youtubeOAuthSettings";
 
 export const YOUTUBE_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/youtube.upload",
@@ -13,8 +14,8 @@ export function getYouTubeRedirectUri(origin: string): string {
   return `${origin.replace(/\/$/, "")}/api/social/youtube/oauth/callback`;
 }
 
-export function isYouTubeOAuthConfigured(): boolean {
-  return isGoogleOAuthConfigured();
+export async function isYouTubeOAuthConfigured(): Promise<boolean> {
+  return isYouTubeOAuthEnabled();
 }
 
 export async function buildYouTubeOAuthUrl(
@@ -22,7 +23,7 @@ export async function buildYouTubeOAuthUrl(
   loginId: string,
   storeCode: string
 ): Promise<string | null> {
-  if (!isYouTubeOAuthConfigured()) return null;
+  if (!(await isYouTubeOAuthConfigured())) return null;
   const redirectUri = getYouTubeRedirectUri(origin);
   const client = await createGoogleOAuthClient(redirectUri);
   if (!client) return null;

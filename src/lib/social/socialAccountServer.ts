@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
 import { encryptToken, decryptToken } from "@/lib/social/tokenCrypto";
 import { isMetaOAuthEnabled } from "@/lib/social/metaOAuthSettings";
-import { isGoogleOAuthConfigured } from "@/lib/googleOAuth.server";
+import { isYouTubeOAuthEnabled } from "@/lib/social/youtubeOAuthSettings";
 import { isNaverOAuthEnabled } from "@/lib/social/naverOAuthSettings";
 import type {
   SocialAccountPublic,
@@ -274,7 +274,7 @@ export async function isMetaOAuthConfigured(): Promise<boolean> {
 }
 
 export async function isYouTubeOAuthConfigured(): Promise<boolean> {
-  return isGoogleOAuthConfigured();
+  return isYouTubeOAuthEnabled();
 }
 
 export async function isNaverOAuthConfigured(): Promise<boolean> {

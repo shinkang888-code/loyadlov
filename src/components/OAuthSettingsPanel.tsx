@@ -7,18 +7,23 @@ import {
   getOAuthSettingsFn,
   saveMetaOAuthSettingsFn,
   saveNaverOAuthSettingsFn,
+  saveYouTubeOAuthSettingsFn,
 } from "@/lib/social.functions";
 
 export function OAuthSettingsPanel() {
   const getSettings = useServerFn(getOAuthSettingsFn);
   const saveMeta = useServerFn(saveMetaOAuthSettingsFn);
   const saveNaver = useServerFn(saveNaverOAuthSettingsFn);
+  const saveYouTube = useServerFn(saveYouTubeOAuthSettingsFn);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [metaAppId, setMetaAppId] = useState("");
   const [metaAppSecret, setMetaAppSecret] = useState("");
   const [metaEnabled, setMetaEnabled] = useState(true);
+  const [youtubeClientId, setYoutubeClientId] = useState("");
+  const [youtubeClientSecret, setYoutubeClientSecret] = useState("");
+  const [youtubeEnabled, setYoutubeEnabled] = useState(true);
   const [naverClientId, setNaverClientId] = useState("");
   const [naverClientSecret, setNaverClientSecret] = useState("");
   const [naverEnabled, setNaverEnabled] = useState(true);
@@ -46,6 +51,15 @@ export function OAuthSettingsPanel() {
               appId: metaAppId.trim() || undefined,
               appSecret: metaAppSecret.trim() || undefined,
               enabled: metaEnabled,
+            },
+          },
+        }),
+        saveYouTube({
+          data: {
+            settings: {
+              clientId: youtubeClientId.trim() || undefined,
+              clientSecret: youtubeClientSecret.trim() || undefined,
+              enabled: youtubeEnabled,
             },
           },
         }),
@@ -89,7 +103,7 @@ export function OAuthSettingsPanel() {
         </h2>
         <ul className="space-y-2 text-sm">
           <li>Meta (Instagram/Threads): {status.meta ? "✅ 설정됨" : "❌ 미설정"}</li>
-          <li>YouTube (Google OAuth): {status.youtube ? "✅ 설정됨" : "❌ 미설정 — GOOGLE_OAUTH_CLIENT_ID/SECRET"}</li>
+          <li>YouTube (Google OAuth): {status.youtube ? "✅ 설정됨" : "❌ 미설정"}</li>
           <li>네이버 블로그: {status.naver ? "✅ 설정됨" : "❌ 미설정"}</li>
         </ul>
       </div>
@@ -110,6 +124,27 @@ export function OAuthSettingsPanel() {
           value={metaAppSecret}
           onChange={(e) => setMetaAppSecret(e.target.value)}
           placeholder="META_APP_SECRET"
+          type="password"
+          className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm"
+        />
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border p-5 space-y-4">
+        <h3 className="text-sm font-semibold">YouTube OAuth (관리자 DB 설정)</h3>
+        <label className="flex items-center gap-2 text-xs">
+          <input type="checkbox" checked={youtubeEnabled} onChange={(e) => setYoutubeEnabled(e.target.checked)} />
+          활성화
+        </label>
+        <input
+          value={youtubeClientId}
+          onChange={(e) => setYoutubeClientId(e.target.value)}
+          placeholder="GOOGLE_OAUTH_CLIENT_ID"
+          className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm"
+        />
+        <input
+          value={youtubeClientSecret}
+          onChange={(e) => setYoutubeClientSecret(e.target.value)}
+          placeholder="GOOGLE_OAUTH_CLIENT_SECRET"
           type="password"
           className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm"
         />
