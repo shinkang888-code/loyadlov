@@ -14,6 +14,13 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGenerateImageRouteImport } from './routes/api/generate-image'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiCronSocialPublishRouteImport } from './routes/api/cron/social-publish'
+import { Route as ApiSocialYoutubeOauthStartRouteImport } from './routes/api/social/youtube/oauth/start'
+import { Route as ApiSocialYoutubeOauthCallbackRouteImport } from './routes/api/social/youtube/oauth/callback'
+import { Route as ApiSocialNaverOauthStartRouteImport } from './routes/api/social/naver/oauth/start'
+import { Route as ApiSocialNaverOauthCallbackRouteImport } from './routes/api/social/naver/oauth/callback'
+import { Route as ApiSocialMetaOauthStartRouteImport } from './routes/api/social/meta/oauth/start'
+import { Route as ApiSocialMetaOauthCallbackRouteImport } from './routes/api/social/meta/oauth/callback'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -39,18 +46,72 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiCronSocialPublishRoute = ApiCronSocialPublishRouteImport.update({
+  id: '/api/cron/social-publish',
+  path: '/api/cron/social-publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSocialYoutubeOauthStartRoute =
+  ApiSocialYoutubeOauthStartRouteImport.update({
+    id: '/api/social/youtube/oauth/start',
+    path: '/api/social/youtube/oauth/start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiSocialYoutubeOauthCallbackRoute =
+  ApiSocialYoutubeOauthCallbackRouteImport.update({
+    id: '/api/social/youtube/oauth/callback',
+    path: '/api/social/youtube/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiSocialNaverOauthStartRoute =
+  ApiSocialNaverOauthStartRouteImport.update({
+    id: '/api/social/naver/oauth/start',
+    path: '/api/social/naver/oauth/start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiSocialNaverOauthCallbackRoute =
+  ApiSocialNaverOauthCallbackRouteImport.update({
+    id: '/api/social/naver/oauth/callback',
+    path: '/api/social/naver/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiSocialMetaOauthStartRoute = ApiSocialMetaOauthStartRouteImport.update({
+  id: '/api/social/meta/oauth/start',
+  path: '/api/social/meta/oauth/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSocialMetaOauthCallbackRoute =
+  ApiSocialMetaOauthCallbackRouteImport.update({
+    id: '/api/social/meta/oauth/callback',
+    path: '/api/social/meta/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
+  '/api/social/meta/oauth/start': typeof ApiSocialMetaOauthStartRoute
+  '/api/social/naver/oauth/callback': typeof ApiSocialNaverOauthCallbackRoute
+  '/api/social/naver/oauth/start': typeof ApiSocialNaverOauthStartRoute
+  '/api/social/youtube/oauth/callback': typeof ApiSocialYoutubeOauthCallbackRoute
+  '/api/social/youtube/oauth/start': typeof ApiSocialYoutubeOauthStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
+  '/api/social/meta/oauth/start': typeof ApiSocialMetaOauthStartRoute
+  '/api/social/naver/oauth/callback': typeof ApiSocialNaverOauthCallbackRoute
+  '/api/social/naver/oauth/start': typeof ApiSocialNaverOauthStartRoute
+  '/api/social/youtube/oauth/callback': typeof ApiSocialYoutubeOauthCallbackRoute
+  '/api/social/youtube/oauth/start': typeof ApiSocialYoutubeOauthStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -59,12 +120,41 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
+  '/api/social/meta/oauth/start': typeof ApiSocialMetaOauthStartRoute
+  '/api/social/naver/oauth/callback': typeof ApiSocialNaverOauthCallbackRoute
+  '/api/social/naver/oauth/start': typeof ApiSocialNaverOauthStartRoute
+  '/api/social/youtube/oauth/callback': typeof ApiSocialYoutubeOauthCallbackRoute
+  '/api/social/youtube/oauth/start': typeof ApiSocialYoutubeOauthStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/admin' | '/api/generate-image'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/api/generate-image'
+    | '/api/cron/social-publish'
+    | '/api/social/meta/oauth/callback'
+    | '/api/social/meta/oauth/start'
+    | '/api/social/naver/oauth/callback'
+    | '/api/social/naver/oauth/start'
+    | '/api/social/youtube/oauth/callback'
+    | '/api/social/youtube/oauth/start'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/admin' | '/api/generate-image'
+  to:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/api/generate-image'
+    | '/api/cron/social-publish'
+    | '/api/social/meta/oauth/callback'
+    | '/api/social/meta/oauth/start'
+    | '/api/social/naver/oauth/callback'
+    | '/api/social/naver/oauth/start'
+    | '/api/social/youtube/oauth/callback'
+    | '/api/social/youtube/oauth/start'
   id:
     | '__root__'
     | '/'
@@ -72,6 +162,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/api/generate-image'
+    | '/api/cron/social-publish'
+    | '/api/social/meta/oauth/callback'
+    | '/api/social/meta/oauth/start'
+    | '/api/social/naver/oauth/callback'
+    | '/api/social/naver/oauth/start'
+    | '/api/social/youtube/oauth/callback'
+    | '/api/social/youtube/oauth/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -79,6 +176,13 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiGenerateImageRoute: typeof ApiGenerateImageRoute
+  ApiCronSocialPublishRoute: typeof ApiCronSocialPublishRoute
+  ApiSocialMetaOauthCallbackRoute: typeof ApiSocialMetaOauthCallbackRoute
+  ApiSocialMetaOauthStartRoute: typeof ApiSocialMetaOauthStartRoute
+  ApiSocialNaverOauthCallbackRoute: typeof ApiSocialNaverOauthCallbackRoute
+  ApiSocialNaverOauthStartRoute: typeof ApiSocialNaverOauthStartRoute
+  ApiSocialYoutubeOauthCallbackRoute: typeof ApiSocialYoutubeOauthCallbackRoute
+  ApiSocialYoutubeOauthStartRoute: typeof ApiSocialYoutubeOauthStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -118,6 +222,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/cron/social-publish': {
+      id: '/api/cron/social-publish'
+      path: '/api/cron/social-publish'
+      fullPath: '/api/cron/social-publish'
+      preLoaderRoute: typeof ApiCronSocialPublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/social/youtube/oauth/start': {
+      id: '/api/social/youtube/oauth/start'
+      path: '/api/social/youtube/oauth/start'
+      fullPath: '/api/social/youtube/oauth/start'
+      preLoaderRoute: typeof ApiSocialYoutubeOauthStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/social/youtube/oauth/callback': {
+      id: '/api/social/youtube/oauth/callback'
+      path: '/api/social/youtube/oauth/callback'
+      fullPath: '/api/social/youtube/oauth/callback'
+      preLoaderRoute: typeof ApiSocialYoutubeOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/social/naver/oauth/start': {
+      id: '/api/social/naver/oauth/start'
+      path: '/api/social/naver/oauth/start'
+      fullPath: '/api/social/naver/oauth/start'
+      preLoaderRoute: typeof ApiSocialNaverOauthStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/social/naver/oauth/callback': {
+      id: '/api/social/naver/oauth/callback'
+      path: '/api/social/naver/oauth/callback'
+      fullPath: '/api/social/naver/oauth/callback'
+      preLoaderRoute: typeof ApiSocialNaverOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/social/meta/oauth/start': {
+      id: '/api/social/meta/oauth/start'
+      path: '/api/social/meta/oauth/start'
+      fullPath: '/api/social/meta/oauth/start'
+      preLoaderRoute: typeof ApiSocialMetaOauthStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/social/meta/oauth/callback': {
+      id: '/api/social/meta/oauth/callback'
+      path: '/api/social/meta/oauth/callback'
+      fullPath: '/api/social/meta/oauth/callback'
+      preLoaderRoute: typeof ApiSocialMetaOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -137,6 +290,13 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiGenerateImageRoute: ApiGenerateImageRoute,
+  ApiCronSocialPublishRoute: ApiCronSocialPublishRoute,
+  ApiSocialMetaOauthCallbackRoute: ApiSocialMetaOauthCallbackRoute,
+  ApiSocialMetaOauthStartRoute: ApiSocialMetaOauthStartRoute,
+  ApiSocialNaverOauthCallbackRoute: ApiSocialNaverOauthCallbackRoute,
+  ApiSocialNaverOauthStartRoute: ApiSocialNaverOauthStartRoute,
+  ApiSocialYoutubeOauthCallbackRoute: ApiSocialYoutubeOauthCallbackRoute,
+  ApiSocialYoutubeOauthStartRoute: ApiSocialYoutubeOauthStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

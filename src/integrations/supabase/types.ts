@@ -47,6 +47,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          value: Json
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          value?: Json
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           admin_note: string | null
@@ -231,6 +249,113 @@ export type Database = {
             columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_accounts: {
+        Row: {
+          id: string
+          store_code: string
+          platform: string
+          platform_user_id: string
+          display_name: string
+          access_token_enc: string
+          refresh_token_enc: string | null
+          token_expires_at: string | null
+          metadata: Json
+          connected_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_code: string
+          platform: string
+          platform_user_id: string
+          display_name?: string
+          access_token_enc: string
+          refresh_token_enc?: string | null
+          token_expires_at?: string | null
+          metadata?: Json
+          connected_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_code?: string
+          platform?: string
+          platform_user_id?: string
+          display_name?: string
+          access_token_enc?: string
+          refresh_token_enc?: string | null
+          token_expires_at?: string | null
+          metadata?: Json
+          connected_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      social_posts: {
+        Row: {
+          id: string
+          store_code: string
+          account_id: string | null
+          platform: string
+          status: string
+          caption: string
+          media_urls: Json
+          platform_options: Json
+          scheduled_at: string | null
+          published_at: string | null
+          platform_post_id: string | null
+          error_message: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_code: string
+          account_id?: string | null
+          platform: string
+          status?: string
+          caption?: string
+          media_urls?: Json
+          platform_options?: Json
+          scheduled_at?: string | null
+          published_at?: string | null
+          platform_post_id?: string | null
+          error_message?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_code?: string
+          account_id?: string | null
+          platform?: string
+          status?: string
+          caption?: string
+          media_urls?: Json
+          platform_options?: Json
+          scheduled_at?: string | null
+          published_at?: string | null
+          platform_post_id?: string | null
+          error_message?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
             referencedColumns: ["id"]
           },
         ]

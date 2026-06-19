@@ -47,6 +47,18 @@ import showcase2 from "@/assets/showcase-2.jpg";
 import showcase3 from "@/assets/showcase-3.jpg";
 import { LeadsPanel } from "@/components/LeadsPanel";
 import { AssetsPanel } from "@/components/AssetsPanel";
+import { SocialPublishPanel } from "@/components/SocialPublishPanel";
+import { OAuthSettingsPanel } from "@/components/OAuthSettingsPanel";
+import { useSocialAccounts } from "@/hooks/useSocialAccounts";
+import {
+  createSocialPostFn,
+  publishSocialPostFn,
+} from "@/lib/social.functions";
+import {
+  ALL_SOCIAL_PLATFORMS,
+  SOCIAL_PLATFORM_LABELS,
+  type SocialPlatform,
+} from "@/lib/social/types";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -111,7 +123,22 @@ const SAMPLE_BODY = `[성수동 #감성식당]
 function AdminConsole() {
   const [selectedUid, setSelectedUid] = useState<string>(CLIENTS[0].uid);
   const [query, setQuery] = useState("");
-  const [nav, setNav] = useState<"workspace" | "queue" | "channels" | "leads" | "assets" | "members" | "analytics" | "settings">("workspace");
+  const initialTab =
+    typeof window !== "undefined"
+      ? (new URLSearchParams(window.location.search).get("tab") as
+          | "workspace"
+          | "queue"
+          | "channels"
+          | "leads"
+          | "assets"
+          | "members"
+          | "analytics"
+          | "settings"
+          | null)
+      : null;
+  const [nav, setNav] = useState<
+    "workspace" | "queue" | "channels" | "leads" | "assets" | "members" | "analytics" | "settings"
+  >(initialTab && ["workspace", "queue", "channels", "leads", "assets", "members", "analytics", "settings"].includes(initialTab) ? initialTab : "workspace");
 
   const filtered = useMemo(
     () =>
@@ -134,6 +161,10 @@ function AdminConsole() {
           <LeadsPanel />
         ) : nav === "assets" ? (
           <AssetsPanel />
+        ) : nav === "channels" ? (
+          <SocialPublishPanel storeName={active.store} industry={active.industry} />
+        ) : nav === "settings" ? (
+          <OAuthSettingsPanel />
         ) : (
           <div className="flex-1 flex min-h-0">
             <ClientList clients={filtered} selectedUid={selectedUid} onSelect={setSelectedUid} />
@@ -180,7 +211,15 @@ function SideNav({
           return (
             <button
               key={it.id}
-              onClick={() => setNav(it.id)}
+              onClick={() => {
+                setNav(it.id);
+                if (typeof window !== "undefined") {
+                  const url = new URL(window.location.href);
+                  if (it.id === "workspace") url.searchParams.delete("tab");
+                  else url.searchParams.set("tab", it.id);
+                  window.history.replaceState({}, "", url.pathname + url.search);
+                }
+              }}
               className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition ${
                 activeNav
                   ? "bg-brand text-primary-foreground shadow-soft"
@@ -353,6 +392,7 @@ function Workspace({ client }: { client: Client }) {
   const [keyword, setKeyword] = useState("미나리삼겹살 신메뉴 출시");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [aiModel, setAiModel] = useState<string | null>(null);
+  const [publishPlatform, setPublishPlatform] = useState<SocialPlatform>("instagram");
 
   return (
     <main className="flex-1 min-w-0 overflow-y-auto">
@@ -428,7 +468,15 @@ function Workspace({ client }: { client: Client }) {
         {tab === "video" && <VideoTab />}
         {tab === "schedule" && <ScheduleTab client={client} body={body} hashtags={hashtags} imageUrl={imageUrl} aiModel={aiModel} />}
 
-        <PublishBar client={client} body={body} hashtags={hashtags} imageUrl={imageUrl} aiModel={aiModel} />
+        <PublishBar
+          client={client}
+          body={body}
+          hashtags={hashtags}
+          imageUrl={imageUrl}
+          aiModel={aiModel}
+          platform={publishPlatform}
+          onPlatformChange={setPublishPlatform}
+        />
       </div>
     </main>
   );
@@ -923,18 +971,32 @@ function PublishBar({
   hashtags,
   imageUrl,
   aiModel,
+  platform,
+  onPlatformChange,
 }: {
   client: Client;
   body: string;
   hashtags: string[];
   imageUrl: string | null;
   aiModel: string | null;
+  platform: SocialPlatform;
+  onPlatformChange: (p: SocialPlatform) => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
   const save = useServerFn(saveDraft);
+  const createPost = useServerFn(createSocialPostFn);
+  const publishPost = useServerFn(publishSocialPostFn);
+  const { isConnected } = useSocialAccounts();
+
+  function buildCaption() {
+    const tagLine = hashtags.length
+      ? "\n\n" + hashtags.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ")
+      : "";
+    return (body.trim() + tagLine).trim();
+  }
 
   async function onSave() {
     if (!body || body.length < 5) {
@@ -963,10 +1025,54 @@ function PublishBar({
     }
   }
 
+  async function onPublish() {
+    const caption = buildCaption();
+    if (!caption || caption.length < 5) {
+      toast.error("본문을 먼저 작성해 주세요.");
+      return;
+    }
+    if (!isConnected(platform)) {
+      toast.error(`${SOCIAL_PLATFORM_LABELS[platform]} 계정을 먼저 연결하세요. (채널 세션 탭)`);
+      return;
+    }
+    setPublishing(true);
+    try {
+      const { post } = await createPost({
+        data: {
+          platform,
+          caption,
+          mediaUrls: imageUrl?.trim() ? [imageUrl.trim()] : [],
+        },
+      });
+      await publishPost({ data: { postId: post.id } });
+      setPublished(true);
+      toast.success(`${SOCIAL_PLATFORM_LABELS[platform]} 발행 완료!`);
+      setTimeout(() => setPublished(false), 2200);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "발행 실패");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   return (
     <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-4 bg-card/95 backdrop-blur border-t border-border flex flex-wrap items-center gap-3">
-      <div className="text-xs text-muted-foreground mr-auto">
-        구글드라이브 경로: <span className="font-mono text-foreground/80">/{client.uid}_{client.store}/2026-06_콘텐츠/</span>
+      <div className="text-xs text-muted-foreground mr-auto flex flex-wrap items-center gap-2">
+        <span>
+          구글드라이브: <span className="font-mono text-foreground/80">/{client.uid}_{client.store}/</span>
+        </span>
+        <select
+          value={platform}
+          onChange={(e) => onPlatformChange(e.target.value as SocialPlatform)}
+          className="h-8 px-2 rounded-lg bg-secondary border border-border text-xs"
+        >
+          {ALL_SOCIAL_PLATFORMS.map((p) => (
+            <option key={p} value={p}>
+              {SOCIAL_PLATFORM_LABELS[p]}
+              {isConnected(p) ? " ✓" : ""}
+            </option>
+          ))}
+        </select>
       </div>
       <button
         onClick={() => void onSave()}
@@ -977,26 +1083,28 @@ function PublishBar({
         {saving ? "저장 중…" : saved ? "드래프트 저장됨" : "드래프트 저장"}
       </button>
       <button
-        onClick={() => {
-          setPublishing(true);
-          setTimeout(() => {
-            setPublishing(false);
-            setPublished(true);
-            toast.success("발행 큐에 등록했어요.");
-            setTimeout(() => setPublished(false), 2200);
-          }, 1400);
-        }}
-        className="inline-flex items-center gap-1.5 h-10 px-5 rounded-xl bg-accent-gradient text-accent-foreground text-sm font-bold shadow-crimson hover:scale-[1.02] transition"
+        onClick={() => void onPublish()}
+        disabled={publishing || !isConnected(platform)}
+        className="inline-flex items-center gap-1.5 h-10 px-5 rounded-xl bg-accent-gradient text-accent-foreground text-sm font-bold shadow-crimson hover:scale-[1.02] transition disabled:opacity-50"
       >
         {publishing ? <Loader2 className="size-4 animate-spin" /> : published ? <CheckCircle2 className="size-4" /> : <Send className="size-4" />}
-        {publishing ? "발행 중…" : published ? "발행 완료" : "피드 발행"}
+        {publishing ? "발행 중…" : published ? "발행 완료" : `${SOCIAL_PLATFORM_LABELS[platform]} 발행`}
       </button>
     </div>
   );
 }
 
 /* ---------------- Right AI panel ---------------- */
+const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, typeof Instagram> = {
+  instagram: Instagram,
+  threads: MessageCircle,
+  youtube: Film,
+  naver_blog: Globe,
+};
+
 function AiPanel({ client }: { client: Client }) {
+  const { accounts, isConnected, loading: accountsLoading } = useSocialAccounts();
+
   return (
     <aside className="w-[340px] shrink-0 bg-card border-l border-border flex flex-col">
       <div className="px-5 py-4 border-b border-border flex items-center gap-2">
@@ -1013,32 +1121,45 @@ function AiPanel({ client }: { client: Client }) {
         {/* Channels */}
         <Card title="채널 세션 상태" icon={<ShieldCheck className="size-4 text-primary" />}>
           <div className="space-y-2">
-            {client.channels.map((ch) => {
-              const M = CHANNEL_META[ch];
-              const valid = ch !== "tt" || client.status !== "needs-auth";
-              return (
-                <div key={ch} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary border border-border">
-                  <div className="size-7 rounded-md bg-card grid place-items-center">
-                    <M.Icon className="size-3.5 text-foreground/70" />
+            {accountsLoading ? (
+              <div className="text-xs text-muted-foreground px-3 py-2">연결 상태 확인 중…</div>
+            ) : (
+              ALL_SOCIAL_PLATFORMS.map((p) => {
+                const Icon = SOCIAL_PLATFORM_ICONS[p];
+                const acc = accounts.find((a) => a.platform === p);
+                const connected = isConnected(p);
+                return (
+                  <div key={p} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary border border-border">
+                    <div className="size-7 rounded-md bg-card grid place-items-center">
+                      <Icon className="size-3.5 text-foreground/70" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs font-medium">{SOCIAL_PLATFORM_LABELS[p]}</span>
+                      {acc && (
+                        <div className="text-[10px] text-muted-foreground truncate">{acc.displayName}</div>
+                      )}
+                    </div>
+                    {connected ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                        <Check className="size-3" /> 연결됨
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent">
+                        <AlertCircle className="size-3" /> 미연결
+                      </span>
+                    )}
                   </div>
-                  <span className="text-xs font-medium flex-1">{M.name}</span>
-                  {valid ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
-                      <Check className="size-3" /> 정상
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent">
-                      <AlertCircle className="size-3" /> 재인증 필요
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
-          {client.status === "needs-auth" && (
-            <button className="mt-3 w-full h-9 rounded-lg bg-accent-gradient text-accent-foreground text-xs font-bold shadow-crimson">
-              알림톡으로 재인증 요청
-            </button>
+          {!accountsLoading && accounts.length === 0 && (
+            <a
+              href="/admin?tab=channels"
+              className="mt-3 w-full h-9 rounded-lg bg-accent-gradient text-accent-foreground text-xs font-bold shadow-crimson grid place-items-center"
+            >
+              채널 OAuth 연결하기
+            </a>
           )}
         </Card>
 
