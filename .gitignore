@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 .tmp
+.vercel/output
 dist-ssr
 .output
 .vinxi
@@ -31,3 +32,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
