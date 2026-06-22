@@ -397,8 +397,8 @@ function Dashboard() {
               {[
                 "GPT·Claude 본문 + 해시태그 5조합 동시 출력",
                 "Midjourney·SD 프롬프트 빌더 + 레이어 편집",
-                "Redis Queue 기반 비동기 대량 생성",
-                "WebSocket 실시간 진행 상황 알림",
+                "Postgres Job Queue 기반 비동기 대량 생성",
+                "Supabase Realtime 실시간 진행 상황 알림",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-3 text-sm">
                   <div className="mt-0.5 size-5 rounded-full bg-brand grid place-items-center shrink-0 shadow-soft">

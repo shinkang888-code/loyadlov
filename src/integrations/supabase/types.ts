@@ -155,6 +155,71 @@ export type Database = {
         }
         Relationships: []
       }
+      generation_jobs: {
+        Row: {
+          id: string
+          store_code: string
+          created_by: string
+          job_type: string
+          status: string
+          progress: number
+          priority: number
+          batch_id: string | null
+          input: Json
+          result: Json | null
+          error_message: string | null
+          draft_id: string | null
+          created_at: string
+          updated_at: string
+          started_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          store_code: string
+          created_by: string
+          job_type: string
+          status?: string
+          progress?: number
+          priority?: number
+          batch_id?: string | null
+          input?: Json
+          result?: Json | null
+          error_message?: string | null
+          draft_id?: string | null
+          created_at?: string
+          updated_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          store_code?: string
+          created_by?: string
+          job_type?: string
+          status?: string
+          progress?: number
+          priority?: number
+          batch_id?: string | null
+          input?: Json
+          result?: Json | null
+          error_message?: string | null
+          draft_id?: string | null
+          created_at?: string
+          updated_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_jobs_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           business_name: string | null
@@ -428,6 +493,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_generation_jobs: {
+        Args: { p_limit?: number }
+        Returns: Database["public"]["Tables"]["generation_jobs"]["Row"][]
+      }
       current_store_code: { Args: never; Returns: string }
       has_role: {
         Args: {

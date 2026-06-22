@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGenerateImageRouteImport } from './routes/api/generate-image'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiCronSocialPublishRouteImport } from './routes/api/cron/social-publish'
+import { Route as ApiCronGenerationWorkerRouteImport } from './routes/api/cron/generation-worker'
 import { Route as ApiSocialYoutubeOauthStartRouteImport } from './routes/api/social/youtube/oauth/start'
 import { Route as ApiSocialYoutubeOauthCallbackRouteImport } from './routes/api/social/youtube/oauth/callback'
 import { Route as ApiSocialTiktokOauthStartRouteImport } from './routes/api/social/tiktok/oauth/start'
@@ -53,6 +54,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
 const ApiCronSocialPublishRoute = ApiCronSocialPublishRouteImport.update({
   id: '/api/cron/social-publish',
   path: '/api/cron/social-publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronGenerationWorkerRoute = ApiCronGenerationWorkerRouteImport.update({
+  id: '/api/cron/generation-worker',
+  path: '/api/cron/generation-worker',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSocialYoutubeOauthStartRoute =
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
   '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
   '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
   '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/generate-image'
     | '/api/cron/social-publish'
+    | '/api/cron/generation-worker'
     | '/api/social/kakao/oauth/callback'
     | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/generate-image'
     | '/api/cron/social-publish'
+    | '/api/cron/generation-worker'
     | '/api/social/kakao/oauth/callback'
     | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/api/generate-image'
     | '/api/cron/social-publish'
+    | '/api/cron/generation-worker'
     | '/api/social/kakao/oauth/callback'
     | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
@@ -229,6 +241,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ApiGenerateImageRoute: typeof ApiGenerateImageRoute
   ApiCronSocialPublishRoute: typeof ApiCronSocialPublishRoute
+  ApiCronGenerationWorkerRoute: typeof ApiCronGenerationWorkerRoute
   ApiSocialKakaoOauthCallbackRoute: typeof ApiSocialKakaoOauthCallbackRoute
   ApiSocialKakaoOauthStartRoute: typeof ApiSocialKakaoOauthStartRoute
   ApiSocialMetaOauthCallbackRoute: typeof ApiSocialMetaOauthCallbackRoute
@@ -283,6 +296,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/social-publish'
       fullPath: '/api/cron/social-publish'
       preLoaderRoute: typeof ApiCronSocialPublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/generation-worker': {
+      id: '/api/cron/generation-worker'
+      path: '/api/cron/generation-worker'
+      fullPath: '/api/cron/generation-worker'
+      preLoaderRoute: typeof ApiCronGenerationWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/social/youtube/oauth/start': {
@@ -375,6 +395,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ApiGenerateImageRoute: ApiGenerateImageRoute,
   ApiCronSocialPublishRoute: ApiCronSocialPublishRoute,
+  ApiCronGenerationWorkerRoute: ApiCronGenerationWorkerRoute,
   ApiSocialKakaoOauthCallbackRoute: ApiSocialKakaoOauthCallbackRoute,
   ApiSocialKakaoOauthStartRoute: ApiSocialKakaoOauthStartRoute,
   ApiSocialMetaOauthCallbackRoute: ApiSocialMetaOauthCallbackRoute,

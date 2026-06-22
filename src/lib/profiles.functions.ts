@@ -59,10 +59,11 @@ export type MemberRow = {
 
 export type QueueItem = {
   id: string;
-  kind: "schedule" | "social" | "draft";
+  kind: "schedule" | "social" | "draft" | "generation";
   title: string;
   channel: string;
   status: string;
+  progress?: number;
   scheduledAt: string | null;
   storeCode: string;
   createdAt: string;
@@ -285,7 +286,7 @@ export const listQueueFn = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const storeCode = await resolveRequestedStoreCode(supabase, userId, data.storeCode);
 
-    const [schedRes, socialRes, draftRes] = await Promise.all([
+    const [schedRes, socialRes, draftRes, genRes] = await Promise.all([
       supabase
         .from("publish_schedule")
         .select("id, channel, status, scheduled_at, store_code, created_at, draft_id")
@@ -307,6 +308,13 @@ export const listQueueFn = createServerFn({ method: "POST" })
         .in("status", ["draft", "review", "approved"])
         .order("created_at", { ascending: false })
         .limit(10),
+      supabase
+        .from("generation_jobs")
+        .select("id, job_type, status, progress, store_code, created_at")
+        .eq("store_code", storeCode)
+        .in("status", ["pending", "processing", "failed"])
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
 
     const items: QueueItem[] = [
@@ -336,6 +344,22 @@ export const listQueueFn = createServerFn({ method: "POST" })
         title: r.title ?? "제목 없는 드래프트",
         channel: r.channel ?? "instagram",
         status: r.status,
+        scheduledAt: null,
+        storeCode: r.store_code,
+        createdAt: r.created_at,
+      })),
+      ...(genRes.data ?? []).map((r) => ({
+        id: r.id,
+        kind: "generation" as const,
+        title:
+          r.job_type === "bulk_pack"
+            ? "AI 대량 생성"
+            : r.job_type === "image"
+              ? "AI 이미지 생성"
+              : "AI 본문 생성",
+        channel: "ai",
+        status: r.status,
+        progress: r.progress,
         scheduledAt: null,
         storeCode: r.store_code,
         createdAt: r.created_at,

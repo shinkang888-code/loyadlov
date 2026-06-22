@@ -54,6 +54,8 @@ import { ChannelOAuthConnectDialog } from "@/components/ChannelOAuthConnectDialo
 import { QueuePanel } from "@/components/QueuePanel";
 import { MembersPanel } from "@/components/MembersPanel";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
+import { BulkGenerateDialog } from "@/components/BulkGenerateDialog";
+import { JobNotificationsBell } from "@/components/JobNotificationsBell";
 import { useSocialAccounts } from "@/hooks/useSocialAccounts";
 import {
   createSocialPostFn,
@@ -205,6 +207,7 @@ function AdminConsole() {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("setup") === "oauth";
   });
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -260,7 +263,13 @@ function AdminConsole() {
     <div className="min-h-screen bg-secondary/50 text-foreground flex">
       <SideNav nav={nav} setNav={setNav} queueBadge={queueBadge} currentUser={currentUser} />
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar query={query} setQuery={setQuery} active={active} />
+        <TopBar
+          query={query}
+          setQuery={setQuery}
+          active={active}
+          storeCode={active.uid !== "—" ? active.uid : undefined}
+          onBulkGenerate={() => setBulkDialogOpen(true)}
+        />
         {storesLoading && nav === "workspace" ? (
           <div className="flex-1 grid place-items-center text-sm text-muted-foreground">
             <Loader2 className="size-5 animate-spin inline mr-2" />
@@ -317,6 +326,18 @@ function AdminConsole() {
         onOpenChange={setOauthDialogOpen}
         onConnected={() => void setNav("channels")}
         storeCode={active.uid !== "—" ? active.uid : undefined}
+      />
+      <BulkGenerateDialog
+        open={bulkDialogOpen}
+        onOpenChange={setBulkDialogOpen}
+        storeCode={active.uid !== "—" ? active.uid : undefined}
+        storeName={active.store}
+        industry={active.industry}
+        tone={active.tone}
+        onEnqueued={() => {
+          void loadStores();
+          setNav("queue");
+        }}
       />
     </div>
   );
@@ -420,10 +441,14 @@ function TopBar({
   query,
   setQuery,
   active,
+  storeCode,
+  onBulkGenerate,
 }: {
   query: string;
   setQuery: (v: string) => void;
   active: Client;
+  storeCode?: string;
+  onBulkGenerate?: () => void;
 }) {
   return (
     <header className="h-16 shrink-0 bg-card border-b border-border flex items-center gap-4 px-5">
@@ -446,13 +471,14 @@ function TopBar({
         </div>
       </div>
 
-      <button className="relative size-10 grid place-items-center rounded-xl bg-secondary border border-border hover:bg-secondary/70 transition">
-        <Bell className="size-4" />
-        <span className="absolute top-2 right-2 size-1.5 rounded-full bg-accent" />
-      </button>
-      <button className="hidden md:inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-brand text-primary-foreground text-sm font-semibold shadow-navy hover:opacity-90 transition">
+      <JobNotificationsBell storeCode={storeCode} />
+      <button
+        type="button"
+        onClick={onBulkGenerate}
+        className="hidden md:inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-brand text-primary-foreground text-sm font-semibold shadow-navy hover:opacity-90 transition"
+      >
         <Plus className="size-4" />
-        새 콘텐츠
+        AI 대량 생성
       </button>
       <button
         onClick={() => void supabase.auth.signOut().then(() => { window.location.href = "/"; })}
@@ -1566,6 +1592,10 @@ function formatActivityLabel(action: string, resourceType: string): string {
     draft_saved: "드래프트 저장",
     post_published: "소셜 발행 완료",
     role_assigned: "역할 변경",
+    generation_enqueued: "AI 작업 등록",
+    generation_completed: "AI 생성 완료",
+    generation_failed: "AI 생성 실패",
+    bulk_generation_enqueued: "대량 생성 등록",
   };
   return labels[action] ?? `${resourceType}: ${action}`;
 }
