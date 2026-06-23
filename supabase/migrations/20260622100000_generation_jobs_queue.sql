@@ -1,4 +1,5 @@
 -- 비동기 AI 생성 작업 큐 (Postgres 기반 — Vercel Cron 워커 + Supabase Realtime)
+-- NOTE: 20260622000000 은 원격에 platform_settings_owner 로 이미 적용됨 → 새 버전 사용
 
 CREATE TABLE IF NOT EXISTS public.generation_jobs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -45,7 +46,6 @@ CREATE TRIGGER generation_jobs_updated_at
   BEFORE UPDATE ON public.generation_jobs
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- 원자적 작업 클레임 (SKIP LOCKED — Redis Queue 대체 패턴)
 CREATE OR REPLACE FUNCTION public.claim_generation_jobs(p_limit int DEFAULT 3)
 RETURNS SETOF public.generation_jobs
 LANGUAGE plpgsql
@@ -73,7 +73,6 @@ $$;
 REVOKE ALL ON FUNCTION public.claim_generation_jobs(int) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.claim_generation_jobs(int) TO service_role;
 
--- Supabase Realtime (WebSocket) 브로드캐스트
 DO $$
 BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.generation_jobs;
