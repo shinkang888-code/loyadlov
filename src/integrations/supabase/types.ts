@@ -155,6 +155,48 @@ export type Database = {
         }
         Relationships: []
       }
+      media_assets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          job_id: string | null
+          kind: string
+          meta: Json
+          prompt: string | null
+          provider: string
+          store_code: string
+          thumb_url: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string | null
+          kind?: string
+          meta?: Json
+          prompt?: string | null
+          provider?: string
+          store_code: string
+          thumb_url?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string | null
+          kind?: string
+          meta?: Json
+          prompt?: string | null
+          provider?: string
+          store_code?: string
+          thumb_url?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           admin_note: string | null

@@ -26,6 +26,13 @@ const SecretsPatch = z
     stripePriceStandard: z.string().max(120).optional(),
     stripePricePremium: z.string().max(120).optional(),
     runwayApiKey: z.string().max(500).optional(),
+    geminiApiKey: z.string().max(500).optional(),
+    openaiApiKey: z.string().max(500).optional(),
+    higgsfieldApiKey: z.string().max(500).optional(),
+    higgsfieldSecret: z.string().max(500).optional(),
+    falKey: z.string().max(500).optional(),
+    figmaToken: z.string().max(500).optional(),
+    canvaApiKey: z.string().max(2000).optional(),
   })
   .partial();
 

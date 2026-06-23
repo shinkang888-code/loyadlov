@@ -21,6 +21,14 @@ export type PlatformSecrets = {
   stripePriceStandard?: string;
   stripePricePremium?: string;
   runwayApiKey?: string;
+  // === AI · 미디어 생성 연동 (관리자 콘솔 API 패널) ===
+  geminiApiKey?: string;
+  openaiApiKey?: string;
+  higgsfieldApiKey?: string;
+  higgsfieldSecret?: string;
+  falKey?: string;
+  figmaToken?: string;
+  canvaApiKey?: string;
 };
 
 export type PlatformSecretField = keyof PlatformSecrets;
@@ -91,6 +99,13 @@ export async function resolvePlatformSecret(field: PlatformSecretField): Promise
     stripePriceStandard: "STRIPE_PRICE_STANDARD",
     stripePricePremium: "STRIPE_PRICE_PREMIUM",
     runwayApiKey: "RUNWAY_API_KEY",
+    geminiApiKey: "GEMINI_API_KEY",
+    openaiApiKey: "OPENAI_API_KEY",
+    higgsfieldApiKey: "HIGGSFIELD_API_KEY",
+    higgsfieldSecret: "HIGGSFIELD_SECRET",
+    falKey: "FAL_KEY",
+    figmaToken: "FIGMA_TOKEN",
+    canvaApiKey: "CANVA_API_KEY",
   };
   const envKey = envMap[field];
   if (envKey) {
@@ -234,4 +249,73 @@ export function computeSetupPercent(status: PlatformSetupStatus): number {
   const checks = Object.values(status);
   const done = checks.filter(Boolean).length;
   return Math.round((done / checks.length) * 100);
+}
+
+// =====================================================================
+// AI · 미디어 생성 연동 (Gemini / OpenAI / Higgsfield / fal / Figma / Canva)
+// =====================================================================
+
+export type AiIntegrationProvider =
+  | "gemini"
+  | "openai"
+  | "higgsfield"
+  | "fal"
+  | "figma"
+  | "canva";
+
+export type AiIntegrationStatus = Record<AiIntegrationProvider, boolean> & {
+  lovable: boolean;
+};
+
+export async function resolveGeminiApiKey(): Promise<string | undefined> {
+  return resolvePlatformSecret("geminiApiKey");
+}
+
+export async function resolveOpenAiApiKey(): Promise<string | undefined> {
+  return resolvePlatformSecret("openaiApiKey");
+}
+
+export async function resolveHiggsfieldCredentials(): Promise<{
+  apiKey?: string;
+  secret?: string;
+}> {
+  const [apiKey, secret] = await Promise.all([
+    resolvePlatformSecret("higgsfieldApiKey"),
+    resolvePlatformSecret("higgsfieldSecret"),
+  ]);
+  return { apiKey, secret };
+}
+
+export async function resolveFalKey(): Promise<string | undefined> {
+  return resolvePlatformSecret("falKey");
+}
+
+export async function resolveFigmaToken(): Promise<string | undefined> {
+  return resolvePlatformSecret("figmaToken");
+}
+
+export async function resolveCanvaApiKey(): Promise<string | undefined> {
+  return resolvePlatformSecret("canvaApiKey");
+}
+
+/** API 연동 패널용 상태 — 키가 입력되어 있는지(env/DB)만 판정 */
+export async function getAiIntegrationStatus(): Promise<AiIntegrationStatus> {
+  const [lovable, gemini, openai, hf, fal, figma, canva] = await Promise.all([
+    resolveLovableApiKey(),
+    resolveGeminiApiKey(),
+    resolveOpenAiApiKey(),
+    resolveHiggsfieldCredentials(),
+    resolveFalKey(),
+    resolveFigmaToken(),
+    resolveCanvaApiKey(),
+  ]);
+  return {
+    lovable: Boolean(lovable),
+    gemini: Boolean(gemini),
+    openai: Boolean(openai),
+    higgsfield: Boolean(hf.apiKey && hf.secret),
+    fal: Boolean(fal),
+    figma: Boolean(figma),
+    canva: Boolean(canva),
+  };
 }

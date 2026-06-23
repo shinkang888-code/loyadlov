@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { SecretField } from "@/components/setup/SecretField";
 import { OAuthSettingsPanel } from "@/components/OAuthSettingsPanel";
+import { AIIntegrationsPanel } from "@/components/AIIntegrationsPanel";
 import {
   generatePlatformTokenFn,
   getPlatformSecretsMaskedFn,
@@ -336,6 +337,13 @@ export function PlatformSetupWizard({ storeCode }: { storeCode?: string }) {
                 {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                 이 단계 저장
               </button>
+
+              <div className="border-t border-border pt-5 mt-2">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                  AI · 미디어 생성 연동 (Gemini · ChatGPT · Higgsfield · Figma · Canva)
+                </h3>
+                <AIIntegrationsPanel embedded />
+              </div>
             </div>
           )}
 

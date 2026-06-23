@@ -198,6 +198,70 @@ async function processImageJob(admin: AdminClient, job: GenerationJobRow): Promi
   await completeJob(admin, job, { dataUrl: image.dataUrl, model: image.model, draftId }, draftId);
 }
 
+async function processMediaGenJob(admin: AdminClient, job: GenerationJobRow): Promise<void> {
+  const input = job.input as {
+    provider?: string;
+    kind?: "image" | "video";
+    prompt: string;
+    imageUrl?: string;
+    size?: string;
+    quality?: string;
+    batchSize?: number;
+    model?: string;
+  };
+  const provider = input.provider ?? "higgsfield";
+  const kind = input.kind ?? "image";
+
+  await updateJobProgress(admin, job.id, 15);
+
+  const { generateHiggsfieldImage, generateHiggsfieldVideo } = await import(
+    "@/lib/integrations/higgsfield.server"
+  );
+
+  let result: { urls: string[]; jobSetId: string };
+  if (kind === "video") {
+    result = await generateHiggsfieldVideo({
+      prompt: input.prompt,
+      imageUrl: input.imageUrl,
+      model: input.model,
+    });
+  } else {
+    result = await generateHiggsfieldImage({
+      prompt: input.prompt,
+      size: input.size,
+      quality: input.quality,
+      batchSize: input.batchSize,
+    });
+  }
+
+  await updateJobProgress(admin, job.id, 85);
+
+  if (!result.urls.length) {
+    throw new Error("미디어 생성 결과 URL이 비어 있습니다 (NSFW 차단 또는 시간 초과).");
+  }
+
+  const rows = result.urls.map((url) => ({
+    store_code: job.store_code,
+    created_by: job.created_by,
+    provider,
+    kind,
+    prompt: input.prompt.slice(0, 2000),
+    url,
+    job_id: job.id,
+    meta: { jobSetId: result.jobSetId } as Json,
+  }));
+  const { error } = await admin.from("media_assets").insert(rows);
+  if (error) throw new Error(error.message);
+
+  await completeJob(admin, job, {
+    provider,
+    kind,
+    urls: result.urls,
+    jobSetId: result.jobSetId,
+    count: result.urls.length,
+  });
+}
+
 async function processBulkPackJob(admin: AdminClient, job: GenerationJobRow): Promise<void> {
   const input = job.input as BulkPackInput;
   const count = Math.min(Math.max(input.variantCount ?? 5, 1), 8);
@@ -279,6 +343,8 @@ export async function processGenerationJob(
       await processBulkPackJob(admin, job);
     } else if (job.job_type === "blog_draft") {
       await processBlogDraftJob(admin, job);
+    } else if (job.job_type === "media_gen") {
+      await processMediaGenJob(admin, job);
     } else {
       await failJob(admin, job, `Unknown job type: ${job.job_type}`);
     }
