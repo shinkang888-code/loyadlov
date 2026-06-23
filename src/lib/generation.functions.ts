@@ -214,6 +214,42 @@ export const cancelGenerationJobFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const retryGenerationJobFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ jobId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: job, error: fetchErr } = await supabase
+      .from("generation_jobs")
+      .select("id, status, store_code")
+      .eq("id", data.jobId)
+      .maybeSingle();
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (!job) throw new Error("작업을 찾을 수 없습니다.");
+    if (!["failed", "cancelled"].includes(job.status)) {
+      throw new Error("실패/취소된 작업만 재시도할 수 있습니다.");
+    }
+
+    await resolveRequestedStoreCode(supabase, userId, job.store_code);
+
+    const { error } = await supabase
+      .from("generation_jobs")
+      .update({
+        status: "pending",
+        progress: 0,
+        error_message: null,
+        started_at: null,
+        completed_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.jobId);
+    if (error) throw new Error(error.message);
+
+    void triggerWorker();
+    return { ok: true };
+  });
+
 async function triggerWorker(): Promise<void> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
