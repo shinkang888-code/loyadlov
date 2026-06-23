@@ -1,6 +1,45 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Phone, Store, RefreshCw, Inbox } from "lucide-react";
+import { Loader2, Phone, Store, RefreshCw, Inbox, MessageCircle, FileText } from "lucide-react";
+import { KakaoConsultPanel } from "@/components/KakaoConsultPanel";
+
+type LeadsProps = { storeCode?: string; storeName?: string };
+
+export function LeadsPanel({ storeCode, storeName }: LeadsProps) {
+  const [view, setView] = useState<"kakao" | "landing">("kakao");
+
+  return (
+    <div className="flex-1 flex flex-col min-w-0 bg-secondary/50">
+      <div className="px-6 pt-4 bg-card border-b border-border flex items-center gap-1">
+        <button
+          onClick={() => setView("kakao")}
+          className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition ${
+            view === "kakao"
+              ? "border-brand text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <MessageCircle className="size-4" /> 카카오 상담
+        </button>
+        <button
+          onClick={() => setView("landing")}
+          className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition ${
+            view === "landing"
+              ? "border-brand text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FileText className="size-4" /> 랜딩 상담
+        </button>
+      </div>
+      {view === "kakao" ? (
+        <KakaoConsultPanel storeCode={storeCode} storeName={storeName} />
+      ) : (
+        <LandingLeadsView />
+      )}
+    </div>
+  );
+}
 
 type Lead = {
   id: string;
@@ -24,7 +63,7 @@ const STATUS_META = {
 
 const STATUSES: Lead["status"][] = ["new", "contacted", "converted", "dropped"];
 
-export function LeadsPanel() {
+function LandingLeadsView() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | Lead["status"]>("all");

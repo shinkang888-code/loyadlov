@@ -290,7 +290,10 @@ function AdminConsole() {
             매장 목록 로딩 중…
           </div>
         ) : nav === "leads" ? (
-          <LeadsPanel />
+          <LeadsPanel
+            storeCode={active.uid !== "—" ? active.uid : undefined}
+            storeName={active.store}
+          />
         ) : nav === "assets" ? (
           <AssetsPanel />
         ) : nav === "channels" ? (

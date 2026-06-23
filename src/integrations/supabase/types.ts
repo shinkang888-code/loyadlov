@@ -197,6 +197,131 @@ export type Database = {
         }
         Relationships: []
       }
+      kakao_channel_settings: {
+        Row: {
+          auto_reply: string | null
+          bot_enabled: boolean
+          channel_chat_url: string | null
+          channel_public_id: string | null
+          chatbot_manage_url: string | null
+          rest_api_key: string | null
+          store_code: string
+          updated_at: string
+          webhook_token: string | null
+        }
+        Insert: {
+          auto_reply?: string | null
+          bot_enabled?: boolean
+          channel_chat_url?: string | null
+          channel_public_id?: string | null
+          chatbot_manage_url?: string | null
+          rest_api_key?: string | null
+          store_code: string
+          updated_at?: string
+          webhook_token?: string | null
+        }
+        Update: {
+          auto_reply?: string | null
+          bot_enabled?: boolean
+          channel_chat_url?: string | null
+          channel_public_id?: string | null
+          chatbot_manage_url?: string | null
+          rest_api_key?: string | null
+          store_code?: string
+          updated_at?: string
+          webhook_token?: string | null
+        }
+        Relationships: []
+      }
+      kakao_consultations: {
+        Row: {
+          channel: string
+          created_at: string
+          customer_name: string | null
+          id: string
+          kakao_user_key: string
+          last_message: string | null
+          last_message_at: string | null
+          note: string | null
+          status: string
+          store_code: string
+          tags: Json
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          kakao_user_key: string
+          last_message?: string | null
+          last_message_at?: string | null
+          note?: string | null
+          status?: string
+          store_code: string
+          tags?: Json
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          kakao_user_key?: string
+          last_message?: string | null
+          last_message_at?: string | null
+          note?: string | null
+          status?: string
+          store_code?: string
+          tags?: Json
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kakao_messages: {
+        Row: {
+          consultation_id: string
+          content: string | null
+          created_at: string
+          direction: string
+          id: string
+          msg_type: string
+          raw: Json
+          store_code: string
+        }
+        Insert: {
+          consultation_id: string
+          content?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          msg_type?: string
+          raw?: Json
+          store_code: string
+        }
+        Update: {
+          consultation_id?: string
+          content?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          msg_type?: string
+          raw?: Json
+          store_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kakao_messages_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "kakao_consultations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_submissions: {
         Row: {
           admin_note: string | null
