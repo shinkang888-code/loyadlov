@@ -67,9 +67,10 @@ function AuthPage() {
       const { tokenHash } = await demoLoginFn();
       const { error } = await supabase.auth.verifyOtp({
         token_hash: tokenHash,
-        type: "email",
+        type: "magiclink",
       });
       if (error) throw error;
+      navigate({ to: "/admin" });
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "데모 로그인에 실패했습니다.");
       setLoading(false);
