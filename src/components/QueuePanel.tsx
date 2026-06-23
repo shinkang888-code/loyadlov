@@ -10,6 +10,7 @@ import {
   type GenerationJobPublic,
 } from "@/lib/generation.functions";
 import { useGenerationJobsRealtime } from "@/hooks/useGenerationJobsRealtime";
+import { isDemoStore, demoQueueItems, demoGenJobs } from "@/lib/demoData";
 import {
   Loader2,
   Layers,
@@ -131,6 +132,13 @@ export function QueuePanel({ storeCode, storeName }: Props) {
       setLoading(false);
       return;
     }
+    if (isDemoStore(storeCode)) {
+      setItems(demoQueueItems());
+      setGenSeed(demoGenJobs());
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setLoadError(null);
     try {
@@ -202,6 +210,12 @@ export function QueuePanel({ storeCode, storeName }: Props) {
   const processing = unified.filter((it) => statusGroup(it.status) === "active");
 
   const handleCancel = async (id: string) => {
+    if (isDemoStore(storeCode)) {
+      setGenSeed((prev) => prev.filter((j) => j.id !== id));
+      setItems((prev) => prev.filter((it) => it.id !== id));
+      toast.success("작업을 취소했습니다. (데모)");
+      return;
+    }
     setBusyId(id);
     try {
       await cancelJob({ data: { jobId: id } });
@@ -215,6 +229,13 @@ export function QueuePanel({ storeCode, storeName }: Props) {
   };
 
   const handleRetry = async (id: string) => {
+    if (isDemoStore(storeCode)) {
+      setGenSeed((prev) =>
+        prev.map((j) => (j.id === id ? { ...j, status: "pending", progress: 0 } : j))
+      );
+      toast.success("재시도를 큐에 넣었습니다. (데모)");
+      return;
+    }
     setBusyId(id);
     try {
       await retryJob({ data: { jobId: id } });
@@ -425,7 +446,7 @@ export function QueuePanel({ storeCode, storeName }: Props) {
                           })}
                         </span>
                       ) : (
-                        new Date(item.createdAt).toLocaleDateString("ko-KR")
+                        <span>{new Date(item.createdAt).toLocaleDateString("ko-KR")}</span>
                       )}
                     </div>
                   </div>

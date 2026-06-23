@@ -12,6 +12,7 @@ import {
 import { DriveFolderTree, type Crumb } from "@/components/DriveFolderTree";
 import { LocalAssetsPanel } from "@/components/LocalAssetsPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { isDemoStore, demoDriveFiles } from "@/lib/demoData";
 import {
   FolderOpen,
   Upload,
@@ -85,7 +86,7 @@ export function AssetsPanel({ storeCode }: AssetsPanelProps) {
         </TabsList>
       </div>
       <TabsContent value="drive" className="flex-1 m-0 min-h-0 overflow-hidden flex flex-col">
-        <DriveAssetsPanel />
+        <DriveAssetsPanel storeCode={storeCode} />
       </TabsContent>
       <TabsContent value="local" className="flex-1 m-0 min-h-0 overflow-hidden flex flex-col">
         <LocalAssetsPanel storeCode={storeCode} />
@@ -94,7 +95,8 @@ export function AssetsPanel({ storeCode }: AssetsPanelProps) {
   );
 }
 
-function DriveAssetsPanel() {
+function DriveAssetsPanel({ storeCode }: { storeCode?: string }) {
+  const demo = isDemoStore(storeCode);
   const qc = useQueryClient();
   const list = useServerFn(listDriveAssets);
   const upload = useServerFn(uploadDriveAsset);
@@ -113,8 +115,9 @@ function DriveAssetsPanel() {
   const rootQuery = useQuery({
     queryKey: ["drive-root"],
     queryFn: () => list({ data: {} }),
+    enabled: !demo,
   });
-  const rootId = rootQuery.data?.rootFolderId ?? null;
+  const rootId = demo ? "demo-root" : rootQuery.data?.rootFolderId ?? null;
 
   useEffect(() => {
     if (rootId && path.length === 0) {
@@ -128,10 +131,10 @@ function DriveAssetsPanel() {
   const filesQuery = useQuery({
     queryKey: ["drive", currentId],
     queryFn: () => list({ data: { folderId: currentId ?? undefined } }),
-    enabled: Boolean(currentId),
+    enabled: Boolean(currentId) && !demo,
   });
 
-  const all = filesQuery.data?.files ?? [];
+  const all = demo ? demoDriveFiles(currentId ?? "demo-root") : filesQuery.data?.files ?? [];
   const folders = useMemo(() => all.filter((f) => f.mimeType === FOLDER_MIME), [all]);
   const docs = useMemo(() => all.filter((f) => f.mimeType !== FOLDER_MIME), [all]);
 
@@ -165,6 +168,10 @@ function DriveAssetsPanel() {
   const onPick = useCallback(
     async (files: FileList | null) => {
       if (!files || files.length === 0) return;
+      if (demo) {
+        setError("데모 모드에서는 파일 업로드가 비활성화됩니다. 실제 Google Drive 연결 후 사용하세요.");
+        return;
+      }
       setError(null);
       for (const f of Array.from(files)) {
         if (f.size > 15 * 1024 * 1024) {
@@ -175,10 +182,14 @@ function DriveAssetsPanel() {
       }
       if (inputRef.current) inputRef.current.value = "";
     },
-    [uploadMut],
+    [uploadMut, demo],
   );
 
   const handleNewFolder = async () => {
+    if (demo) {
+      setError("데모 모드에서는 폴더를 만들 수 없습니다. 실제 Google Drive 연결 후 사용하세요.");
+      return;
+    }
     const name = prompt("새 폴더 이름");
     if (!name?.trim()) return;
     try {
@@ -190,6 +201,10 @@ function DriveAssetsPanel() {
   };
 
   const handleRename = async (fileId: string, currentName: string) => {
+    if (demo) {
+      setError("데모 모드에서는 이름을 변경할 수 없습니다. 실제 Google Drive 연결 후 사용하세요.");
+      return;
+    }
     const name = prompt("새 이름", currentName);
     if (!name?.trim() || name === currentName) return;
     try {
@@ -200,11 +215,20 @@ function DriveAssetsPanel() {
     }
   };
 
+  const requestDelete = (fileId: string, name: string, withChildren = false) => {
+    if (demo) {
+      setError("데모 모드에서는 삭제할 수 없습니다. 실제 Google Drive 연결 후 사용하세요.");
+      return;
+    }
+    const msg = withChildren ? `폴더 '${name}' 삭제할까요? (안의 파일도 삭제됨)` : `${name} 삭제할까요?`;
+    if (confirm(msg)) deleteMut.mutate(fileId);
+  };
+
   const openFolder = (f: Crumb) => setPath((p) => [...p, { id: f.id, name: f.name }]);
   const goToCrumb = (i: number) => setPath((p) => p.slice(0, i + 1));
 
-  const loading = rootQuery.isLoading || (filesQuery.isLoading && Boolean(currentId));
-  const driveError = rootQuery.isError ? (rootQuery.error as Error) : null;
+  const loading = demo ? false : rootQuery.isLoading || (filesQuery.isLoading && Boolean(currentId));
+  const driveError = demo ? null : rootQuery.isError ? (rootQuery.error as Error) : null;
 
   return (
     <div className="flex-1 flex min-w-0 bg-secondary/30">
@@ -215,7 +239,37 @@ function DriveAssetsPanel() {
           <span className="font-display font-bold text-sm">탐색기</span>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {rootId ? (
+          {demo ? (
+            <div className="text-sm space-y-0.5">
+              <button
+                onClick={() => setPath([{ id: "demo-root", name: "소재함 (루트)" }])}
+                className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-secondary transition ${
+                  currentId === "demo-root" ? "bg-secondary font-semibold" : ""
+                }`}
+              >
+                <HardDrive className="size-3.5 text-primary" /> 소재함 (루트)
+              </button>
+              {demoDriveFiles("demo-root")
+                .filter((f) => f.mimeType === FOLDER_MIME)
+                .map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() =>
+                      setPath([
+                        { id: "demo-root", name: "소재함 (루트)" },
+                        { id: f.id, name: f.name },
+                      ])
+                    }
+                    className={`w-full flex items-center gap-1.5 pl-6 pr-2 py-1.5 rounded-lg hover:bg-secondary transition ${
+                      currentId === f.id ? "bg-secondary font-semibold" : ""
+                    }`}
+                  >
+                    <Folder className="size-3.5 text-primary" />
+                    <span className="truncate">{f.name}</span>
+                  </button>
+                ))}
+            </div>
+          ) : rootId ? (
             <DriveFolderTree
               rootId={rootId}
               selectedId={currentId}
@@ -377,8 +431,7 @@ function DriveAssetsPanel() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm(`폴더 '${f.name}' 삭제할까요? (안의 파일도 삭제됨)`))
-                              deleteMut.mutate(f.id);
+                            requestDelete(f.id, f.name, true);
                           }}
                           className="opacity-0 group-hover:opacity-100 size-7 grid place-items-center rounded-lg hover:bg-destructive/10 text-destructive"
                           title="삭제"
@@ -439,9 +492,7 @@ function DriveAssetsPanel() {
                               <Pencil className="size-3" />
                             </button>
                             <button
-                              onClick={() => {
-                                if (confirm(`${f.name} 삭제할까요?`)) deleteMut.mutate(f.id);
-                              }}
+                              onClick={() => requestDelete(f.id, f.name)}
                               disabled={deleteMut.isPending}
                               className="size-7 grid place-items-center rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition"
                               title="삭제"
@@ -512,9 +563,7 @@ function DriveAssetsPanel() {
                               <Pencil className="size-3.5" />
                             </button>
                             <button
-                              onClick={() => {
-                                if (confirm(`${f.name} 삭제할까요?`)) deleteMut.mutate(f.id);
-                              }}
+                              onClick={() => requestDelete(f.id, f.name)}
                               className="size-7 grid place-items-center rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20"
                               title="삭제"
                             >

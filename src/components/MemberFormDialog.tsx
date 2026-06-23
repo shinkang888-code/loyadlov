@@ -12,6 +12,7 @@ import {
   type MemberRoleType,
   type MemberStatusType,
 } from "@/lib/members.functions";
+import { isDemoStore, DEMO_STORE_CODE } from "@/lib/demoData";
 
 export const ROLE_LABEL: Record<MemberRoleType, string> = {
   member: "일반회원",
@@ -77,6 +78,28 @@ export function MemberFormDialog({ open, onOpenChange, storeCode, member, onSave
         .map((t) => t.trim())
         .filter(Boolean)
         .slice(0, 20);
+      if (isDemoStore(storeCode)) {
+        const now = new Date().toISOString();
+        const m: CrmMember = {
+          id: member?.id ?? `demo-mem-${Date.now()}`,
+          storeCode: storeCode ?? DEMO_STORE_CODE,
+          name: name.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          kakaoUserKey: kakaoUserKey.trim() || null,
+          role,
+          status,
+          memo: memo.trim() || null,
+          tags: tagArr,
+          lastContactAt: member?.lastContactAt ?? null,
+          createdAt: member?.createdAt ?? now,
+          updatedAt: now,
+        };
+        onSaved(m);
+        toast.success(member ? "회원 정보가 수정되었습니다. (데모)" : "회원이 등록되었습니다. (데모)");
+        onOpenChange(false);
+        return;
+      }
       let res;
       if (member) {
         res = await updateFn({

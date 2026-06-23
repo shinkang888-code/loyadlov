@@ -32,6 +32,7 @@ import {
   ROLE_LABEL,
   STATUS_LABEL,
 } from "@/components/MemberFormDialog";
+import { isDemoStore, demoMembers, demoMemberThread } from "@/lib/demoData";
 
 type Props = { storeCode?: string; storeName?: string };
 
@@ -69,6 +70,22 @@ export function MemberDirectoryPanel({ storeCode, storeName }: Props) {
   const instanceRef = useRef(Math.random().toString(36).slice(2));
 
   const load = useCallback(async () => {
+    if (isDemoStore(storeCode)) {
+      const q = search.trim().toLowerCase();
+      const all = demoMembers();
+      setMembers(
+        q
+          ? all.filter(
+              (m) =>
+                m.name.toLowerCase().includes(q) ||
+                (m.email ?? "").toLowerCase().includes(q) ||
+                (m.phone ?? "").toLowerCase().includes(q)
+            )
+          : all
+      );
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await listFn({ data: { storeCode, search: search || undefined } });
@@ -95,6 +112,11 @@ export function MemberDirectoryPanel({ storeCode, storeName }: Props) {
       setChannel(m.email ? "email" : "kakao");
       setSubject("");
       setBody("");
+      if (isDemoStore(storeCode)) {
+        setThread(demoMemberThread(m.id));
+        setThreadLoading(false);
+        return;
+      }
       setThreadLoading(true);
       try {
         const res = await getThread({ data: { memberId: m.id } });
@@ -105,7 +127,7 @@ export function MemberDirectoryPanel({ storeCode, storeName }: Props) {
         setThreadLoading(false);
       }
     },
-    [getThread]
+    [getThread, storeCode]
   );
 
   // 수신 메시지 실시간 반영
@@ -175,6 +197,25 @@ export function MemberDirectoryPanel({ storeCode, storeName }: Props) {
 
   const handleSend = async () => {
     if (!selected || !body.trim()) return;
+    if (isDemoStore(storeCode)) {
+      setThread((p) => [
+        ...p,
+        {
+          id: `demo-mm-${Date.now()}`,
+          memberId: selected.id,
+          channel,
+          direction: "out",
+          subject: channel === "email" ? subject.trim() || "(제목 없음)" : null,
+          content: body.trim(),
+          status: "sent",
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      setBody("");
+      setSubject("");
+      toast.success(channel === "email" ? "이메일을 발송했습니다. (데모)" : "카카오 메시지를 기록했습니다. (데모)");
+      return;
+    }
     setSending(true);
     try {
       if (channel === "email") {
@@ -211,6 +252,13 @@ export function MemberDirectoryPanel({ storeCode, storeName }: Props) {
   const handleDelete = async () => {
     if (!selected) return;
     if (!confirm(`'${selected.name}' 회원을 삭제할까요? 통신 기록도 함께 삭제됩니다.`)) return;
+    if (isDemoStore(storeCode)) {
+      setMembers((prev) => prev.filter((m) => m.id !== selected.id));
+      setSelectedId(null);
+      setThread([]);
+      toast.success("삭제되었습니다. (데모)");
+      return;
+    }
     try {
       await deleteFn({ data: { id: selected.id } });
       setSelectedId(null);
@@ -501,7 +549,22 @@ export function MemberDirectoryPanel({ storeCode, storeName }: Props) {
         onOpenChange={setFormOpen}
         storeCode={storeCode}
         member={editing}
-        onSaved={() => void load()}
+        onSaved={(m) => {
+          if (isDemoStore(storeCode)) {
+            setMembers((prev) => {
+              const idx = prev.findIndex((x) => x.id === m.id);
+              if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = m;
+                return next;
+              }
+              return [m, ...prev];
+            });
+            setSelectedId(m.id);
+          } else {
+            void load();
+          }
+        }}
       />
     </div>
   );

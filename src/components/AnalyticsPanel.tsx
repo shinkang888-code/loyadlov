@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getAnalyticsFn, type AnalyticsSummary } from "@/lib/profiles.functions";
 import { getGaReportFn } from "@/lib/aiIntegrations.functions";
 import { SOCIAL_PLATFORM_LABELS, type SocialPlatform } from "@/lib/social/types";
+import { isDemoStore, demoAnalytics, demoGaReport } from "@/lib/demoData";
 import {
   Activity,
   Loader2,
@@ -51,6 +52,11 @@ export function AnalyticsPanel({ storeCode, storeName }: Props) {
   const [gaError, setGaError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (isDemoStore(storeCode)) {
+      setData(demoAnalytics());
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await getAnalytics({ data: { storeCode } });
@@ -61,6 +67,12 @@ export function AnalyticsPanel({ storeCode, storeName }: Props) {
   }, [getAnalytics, storeCode]);
 
   const loadGa = useCallback(async () => {
+    if (isDemoStore(storeCode)) {
+      setGa(demoGaReport(gaRange) as GaReport);
+      setGaError(null);
+      setGaLoading(false);
+      return;
+    }
     setGaLoading(true);
     setGaError(null);
     try {
@@ -77,7 +89,7 @@ export function AnalyticsPanel({ storeCode, storeName }: Props) {
     } finally {
       setGaLoading(false);
     }
-  }, [getGaReport, gaRange]);
+  }, [getGaReport, gaRange, storeCode]);
 
   useEffect(() => {
     void load();

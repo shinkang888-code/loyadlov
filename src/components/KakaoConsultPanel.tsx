@@ -32,6 +32,12 @@ import {
 } from "@/lib/kakaoConsult.functions";
 import { useKakaoConsultationsRealtime } from "@/hooks/useKakaoConsultationsRealtime";
 import { KakaoSettingsDialog } from "@/components/KakaoSettingsDialog";
+import {
+  isDemoStore,
+  demoConsultations,
+  demoConsultMessages,
+  demoKakaoSettings,
+} from "@/lib/demoData";
 
 type Props = { storeCode?: string; storeName?: string };
 
@@ -96,6 +102,10 @@ export function KakaoConsultPanel({ storeCode, storeName }: Props) {
   });
 
   const loadSettings = useCallback(async () => {
+    if (isDemoStore(storeCode)) {
+      setSettings(demoKakaoSettings());
+      return;
+    }
     try {
       const res = await getSettings({ data: { storeCode } });
       setSettings(res.settings);
@@ -105,6 +115,11 @@ export function KakaoConsultPanel({ storeCode, storeName }: Props) {
   }, [getSettings, storeCode]);
 
   const loadList = useCallback(async () => {
+    if (isDemoStore(storeCode)) {
+      setSeed(demoConsultations());
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await listFn({ data: { storeCode } });
@@ -130,6 +145,11 @@ export function KakaoConsultPanel({ storeCode, storeName }: Props) {
     async (c: Consultation) => {
       setSelectedId(c.id);
       setEditingName(false);
+      if (isDemoStore(storeCode)) {
+        setMessages(demoConsultMessages(c.id));
+        setMsgLoading(false);
+        return;
+      }
       setMsgLoading(true);
       try {
         const res = await getMessages({ data: { consultationId: c.id } });
@@ -143,7 +163,7 @@ export function KakaoConsultPanel({ storeCode, storeName }: Props) {
         setMsgLoading(false);
       }
     },
-    [getMessages, markReadFn]
+    [getMessages, markReadFn, storeCode]
   );
 
   useEffect(() => {
@@ -154,6 +174,21 @@ export function KakaoConsultPanel({ storeCode, storeName }: Props) {
 
   const handleSend = async () => {
     if (!selected || !draft.trim()) return;
+    if (isDemoStore(storeCode)) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `demo-msg-${Date.now()}`,
+          consultationId: selected.id,
+          direction: "out",
+          content: draft.trim(),
+          msgType: "agent",
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      setDraft("");
+      return;
+    }
     setSending(true);
     try {
       const res = await sendFn({
@@ -170,6 +205,14 @@ export function KakaoConsultPanel({ storeCode, storeName }: Props) {
 
   const handleRename = async () => {
     if (!selected) return;
+    if (isDemoStore(storeCode)) {
+      setSeed((prev) =>
+        prev.map((c) => (c.id === selected.id ? { ...c, customerName: nameInput.trim() } : c))
+      );
+      setEditingName(false);
+      toast.success("이름이 수정되었습니다. (데모)");
+      return;
+    }
     try {
       await renameFn({ data: { id: selected.id, name: nameInput.trim() } });
       setEditingName(false);
@@ -182,6 +225,10 @@ export function KakaoConsultPanel({ storeCode, storeName }: Props) {
 
   const handleStatus = async (status: Consultation["status"]) => {
     if (!selected) return;
+    if (isDemoStore(storeCode)) {
+      setSeed((prev) => prev.map((c) => (c.id === selected.id ? { ...c, status } : c)));
+      return;
+    }
     try {
       await updateFn({ data: { id: selected.id, status } });
       void loadList();
@@ -193,6 +240,13 @@ export function KakaoConsultPanel({ storeCode, storeName }: Props) {
   const handleDelete = async () => {
     if (!selected) return;
     if (!confirm("이 상담 기록을 삭제할까요? 메시지도 함께 삭제됩니다.")) return;
+    if (isDemoStore(storeCode)) {
+      setSeed((prev) => prev.filter((c) => c.id !== selected.id));
+      setSelectedId(null);
+      setMessages([]);
+      toast.success("삭제되었습니다. (데모)");
+      return;
+    }
     try {
       await deleteFn({ data: { id: selected.id } });
       setSelectedId(null);

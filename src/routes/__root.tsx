@@ -106,8 +106,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // translate="no" + notranslate: 브라우저 자동번역(크롬/엣지)이 텍스트 노드를 <font>로
+    // 감싸면 React 갱신 시 removeChild가 실패해 대시보드가 통째로 크래시한다. 이를 차단한다.
+    <html lang="ko" translate="no" className="notranslate">
       <head>
+        <meta name="google" content="notranslate" />
         <HeadContent />
       </head>
       <body>
