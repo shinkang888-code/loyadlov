@@ -145,6 +145,36 @@ export async function uploadFileToDrive(opts: {
   return (await res.json()) as DriveFile;
 }
 
+export const DRIVE_FOLDER_MIME = "application/vnd.google-apps.folder";
+
+export async function createDriveFolder(parentId: string, name: string): Promise<DriveFile> {
+  const token = await getDriveAccessToken();
+  const res = await fetch(
+    `${DRIVE_API}/files?supportsAllDrives=true&fields=id,name,mimeType,modifiedTime,webViewLink,iconLink`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name, mimeType: DRIVE_FOLDER_MIME, parents: [parentId] }),
+    },
+  );
+  if (!res.ok) throw new Error(`Drive folder create failed: ${res.status} ${await res.text()}`);
+  return (await res.json()) as DriveFile;
+}
+
+export async function renameDriveFile(fileId: string, name: string): Promise<DriveFile> {
+  const token = await getDriveAccessToken();
+  const res = await fetch(
+    `${DRIVE_API}/files/${fileId}?supportsAllDrives=true&fields=id,name,mimeType,size,modifiedTime,webViewLink,thumbnailLink,iconLink`,
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    },
+  );
+  if (!res.ok) throw new Error(`Drive rename failed: ${res.status} ${await res.text()}`);
+  return (await res.json()) as DriveFile;
+}
+
 export async function deleteDriveFile(fileId: string): Promise<void> {
   const token = await getDriveAccessToken();
   const res = await fetch(`${DRIVE_API}/files/${fileId}?supportsAllDrives=true`, {

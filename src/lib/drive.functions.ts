@@ -55,3 +55,25 @@ export const deleteDriveAsset = createServerFn({ method: "POST" })
     await deleteDriveFile(data.fileId);
     return { ok: true };
   });
+
+export const createDriveFolderFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { name: string; parentId?: string }) =>
+    z.object({ name: z.string().min(1).max(255), parentId: z.string().optional() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { createDriveFolder } = await import("./google-drive.server");
+    const folder = await createDriveFolder(data.parentId ?? (await rootFolder()), data.name);
+    return { folder };
+  });
+
+export const renameDriveAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { fileId: string; name: string }) =>
+    z.object({ fileId: z.string().min(1), name: z.string().min(1).max(255) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { renameDriveFile } = await import("./google-drive.server");
+    const file = await renameDriveFile(data.fileId, data.name);
+    return { file };
+  });
