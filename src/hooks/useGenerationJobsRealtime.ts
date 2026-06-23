@@ -59,6 +59,10 @@ export function useGenerationJobsRealtime(
   const { storeCode, notify = false, onUpdate } = options;
   const [jobs, setJobs] = useState<GenerationJobPublic[]>(initialJobs);
   const prevStatusRef = useRef<Map<string, string>>(new Map());
+  // 인스턴스별 고유 채널 토픽 — 같은 storeCode를 구독하는 다른 컴포넌트/재마운트와
+  // 토픽이 겹쳐 "cannot add postgres_changes callbacks after subscribe()" 에러가
+  // 나는 것을 방지한다.
+  const instanceIdRef = useRef<string>(Math.random().toString(36).slice(2));
 
   useEffect(() => {
     setJobs(initialJobs);
@@ -67,16 +71,18 @@ export function useGenerationJobsRealtime(
   useEffect(() => {
     if (!storeCode) return;
 
-    const channel = supabase
-      .channel(`generation_jobs:${storeCode}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "generation_jobs",
-          filter: `store_code=eq.${storeCode}`,
-        },
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel(`generation_jobs:${storeCode}:${instanceIdRef.current}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "generation_jobs",
+            filter: `store_code=eq.${storeCode}`,
+          },
         (payload) => {
           const row = (payload.new ?? payload.old) as JobRow | undefined;
           if (!row?.id) return;
@@ -110,11 +116,14 @@ export function useGenerationJobsRealtime(
 
           onUpdate?.(job);
         }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    } catch (e) {
+      console.error("[useGenerationJobsRealtime] subscribe failed:", e);
+    }
 
     return () => {
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [storeCode, notify, onUpdate]);
 
