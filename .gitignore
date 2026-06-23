@@ -39,6 +39,9 @@ dist-ssr
 # Supabase CLI local link cache
 supabase/.temp/
 
+# 로컬 개발 소재함 (C: 클론 업로드 폴더)
+local-assets/
+
 # Other package managers (this project uses npm)
 bun.lock
 pnpm-lock.yaml

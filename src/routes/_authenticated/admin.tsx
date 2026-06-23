@@ -295,7 +295,7 @@ function AdminConsole() {
             storeName={active.store}
           />
         ) : nav === "assets" ? (
-          <AssetsPanel />
+          <AssetsPanel storeCode={active.uid !== "—" ? active.uid : undefined} />
         ) : nav === "channels" ? (
           <SocialPublishPanel
             storeCode={active.uid !== "—" ? active.uid : undefined}

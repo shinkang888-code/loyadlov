@@ -10,6 +10,8 @@ import {
   renameDriveAsset,
 } from "@/lib/drive.functions";
 import { DriveFolderTree, type Crumb } from "@/components/DriveFolderTree";
+import { LocalAssetsPanel } from "@/components/LocalAssetsPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FolderOpen,
   Upload,
@@ -29,9 +31,14 @@ import {
   FileText,
   FileVideo,
   File as FileIcon,
+  Cloud,
 } from "lucide-react";
 
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+type AssetsPanelProps = {
+  storeCode?: string;
+};
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -64,7 +71,30 @@ function FileTypeIcon({ mimeType, className }: { mimeType: string; className?: s
   return <FileIcon className={className} />;
 }
 
-export function AssetsPanel() {
+export function AssetsPanel({ storeCode }: AssetsPanelProps) {
+  return (
+    <Tabs defaultValue="drive" className="flex-1 flex flex-col min-h-0">
+      <div className="px-6 pt-4 pb-0 bg-secondary/30 border-b border-border">
+        <TabsList>
+          <TabsTrigger value="drive" className="gap-1.5 text-xs">
+            <Cloud className="size-3.5" /> Google Drive
+          </TabsTrigger>
+          <TabsTrigger value="local" className="gap-1.5 text-xs">
+            <HardDrive className="size-3.5" /> 로컬 폴더 (C:)
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="drive" className="flex-1 m-0 min-h-0 overflow-hidden flex flex-col">
+        <DriveAssetsPanel />
+      </TabsContent>
+      <TabsContent value="local" className="flex-1 m-0 min-h-0 overflow-hidden flex flex-col">
+        <LocalAssetsPanel storeCode={storeCode} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function DriveAssetsPanel() {
   const qc = useQueryClient();
   const list = useServerFn(listDriveAssets);
   const upload = useServerFn(uploadDriveAsset);
