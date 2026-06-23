@@ -5,8 +5,9 @@ import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, ArrowLeft } from "lucide-react";
-import logo from "@/assets/loyard-logo.jpg.asset.json";
+import { Sparkles, ArrowLeft, Play } from "lucide-react";
+import logo from "@/assets/loyard-logo.jpg";
+import { demoLoginFn } from "@/lib/demoAuth.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -59,6 +60,22 @@ function AuthPage() {
     }
   };
 
+  const handleDemo = async () => {
+    setErr(null);
+    setLoading(true);
+    try {
+      const { tokenHash } = await demoLoginFn();
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "email",
+      });
+      if (error) throw error;
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : "데모 로그인에 실패했습니다.");
+      setLoading(false);
+    }
+  };
+
   const handleGoogle = async () => {
     setErr(null);
     setLoading(true);
@@ -88,7 +105,7 @@ function AuthPage() {
         <div className="w-full max-w-md">
           <div className="flex flex-col items-center text-center mb-8">
             <img
-              src={logo.url}
+              src={logo}
               alt="Loyard"
               className="size-16 rounded-2xl object-cover ring-1 ring-primary/15 shadow-soft mb-4"
             />
@@ -103,6 +120,20 @@ function AuthPage() {
           </div>
 
           <div className="glass rounded-2xl p-6 sm:p-8 shadow-soft border border-border/60">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full h-11 mb-2"
+              disabled={loading}
+              onClick={() => void handleDemo()}
+            >
+              <Play className="size-4 mr-2" />
+              데모로 둘러보기
+            </Button>
+            <p className="text-[11px] text-center text-muted-foreground mb-5">
+              Google 연동 없이 바로 대시보드를 체험합니다
+            </p>
+
             <Button
               type="button"
               variant="outline"

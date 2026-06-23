@@ -43,7 +43,7 @@ import {
   FolderOpen,
   Youtube,
 } from "lucide-react";
-import logo from "@/assets/loyard-logo.jpg.asset.json";
+import logo from "@/assets/loyard-logo.jpg";
 import showcase1 from "@/assets/showcase-1.jpg";
 import showcase2 from "@/assets/showcase-2.jpg";
 import showcase3 from "@/assets/showcase-3.jpg";
@@ -377,7 +377,7 @@ function SideNav({
   return (
     <aside className="w-[240px] shrink-0 bg-card border-r border-border flex flex-col">
       <div className="px-5 py-5 border-b border-border flex items-center gap-2.5">
-        <img src={logo.url} alt="로이어드" className="size-9 rounded-xl ring-1 ring-primary/15 shadow-soft" />
+        <img src={logo} alt="로이어드" className="size-9 rounded-xl ring-1 ring-primary/15 shadow-soft" />
         <div className="leading-tight">
           <div className="font-display font-bold text-sm">로이어드</div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Admin Console</div>
@@ -1017,7 +1017,7 @@ function ImageTab({
             </div>
           )}
           <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-card/90 backdrop-blur rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-soft">
-            <img src={logo.url} className="size-4 rounded-md" alt="" /> 로이어드 워터마크
+            <img src={logo} className="size-4 rounded-md" alt="" /> 로이어드 워터마크
           </div>
           {imageUrl && (
             <div className="absolute bottom-0 inset-x-0 p-5 bg-gradient-to-t from-black/70 to-transparent text-white">

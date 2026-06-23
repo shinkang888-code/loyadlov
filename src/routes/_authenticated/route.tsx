@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles, Store } from "lucide-react";
-import logo from "@/assets/loyard-logo.jpg.asset.json";
+import logo from "@/assets/loyard-logo.jpg";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -115,7 +115,7 @@ function Onboarding({ onDone }: { onDone: () => void }) {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
       <header className="px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <img src={logo.url} alt="Loyard" className="size-9 rounded-xl object-cover ring-1 ring-primary/15" />
+          <img src={logo} alt="Loyard" className="size-9 rounded-xl object-cover ring-1 ring-primary/15" />
           <span className="font-display font-bold tracking-tight">로이어드</span>
         </div>
         <button

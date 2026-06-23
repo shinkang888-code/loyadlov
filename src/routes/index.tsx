@@ -23,7 +23,7 @@ import showcase1 from "@/assets/showcase-1.jpg";
 import showcase2 from "@/assets/showcase-2.jpg";
 import showcase3 from "@/assets/showcase-3.jpg";
 import owner from "@/assets/owner.jpg";
-import logo from "@/assets/loyard-logo.jpg.asset.json";
+import logo from "@/assets/loyard-logo.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -39,7 +39,10 @@ export const Route = createFileRoute("/")({
         property: "og:description",
         content: "AI가 만들고 크루가 운영하는, 자영업자를 위한 SNS 피드 대행 플랫폼.",
       },
-      { property: "og:image", content: logo.url },
+      {
+        property: "og:image",
+        content: `${(import.meta.env.VITE_APP_URL ?? "https://loyadbeta.vercel.app").replace(/\/$/, "")}${logo}`,
+      },
     ],
   }),
   component: Landing,
@@ -48,7 +51,7 @@ export const Route = createFileRoute("/")({
 function LogoMark({ className = "size-9" }: { className?: string }) {
   return (
     <img
-      src={logo.url}
+      src={logo}
       alt="로이어드 Loyard"
       className={`${className} rounded-xl object-cover ring-1 ring-primary/15 shadow-soft`}
     />
