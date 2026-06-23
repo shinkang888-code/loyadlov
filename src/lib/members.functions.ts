@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveRequestedStoreCode } from "@/lib/storeContext.server";
 import { logActivity } from "@/lib/activity.server";
+import type { Database } from "@/integrations/supabase/types";
 
 const StoreInput = z.object({ storeCode: z.string().trim().optional() });
 
@@ -172,7 +173,9 @@ export const updateMemberFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ member: CrmMember }> => {
     const { supabase } = context;
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: Database["public"]["Tables"]["members"]["Update"] = {
+      updated_at: new Date().toISOString(),
+    };
     if (data.name !== undefined) patch.name = data.name;
     if (data.email !== undefined) patch.email = data.email || null;
     if (data.phone !== undefined) patch.phone = data.phone || null;

@@ -138,8 +138,9 @@ export function QueuePanel({ storeCode, storeName }: Props) {
         listQueue({ data: { storeCode } }),
         listGenJobs({ data: { storeCode, limit: 30 } }).catch(() => ({ jobs: [] })),
       ]);
+      const genJobs = (genRes as { jobs?: GenerationJobPublic[] })?.jobs;
       setItems(Array.isArray(queueRes?.items) ? queueRes.items : []);
-      setGenSeed(Array.isArray(genRes?.jobs) ? genRes.jobs : []);
+      setGenSeed(Array.isArray(genJobs) ? genJobs : []);
     } catch (e) {
       setItems([]);
       setGenSeed([]);

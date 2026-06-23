@@ -5,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveRequestedStoreCode } from "@/lib/storeContext.server";
+import type { Database } from "@/integrations/supabase/types";
 
 const StoreInput = z.object({ storeCode: z.string().trim().optional() });
 
@@ -138,7 +139,7 @@ export const saveKakaoSettingsFn = createServerFn({ method: "POST" })
     const token =
       data.regenerateToken || !existing?.webhook_token ? randomToken() : existing.webhook_token;
 
-    const patch: Record<string, unknown> = {
+    const patch: Database["public"]["Tables"]["kakao_channel_settings"]["Insert"] = {
       store_code: storeCode,
       webhook_token: token,
       updated_at: new Date().toISOString(),
@@ -267,7 +268,9 @@ export const updateConsultationFn = createServerFn({ method: "POST" })
       .parse(input)
   )
   .handler(async ({ data, context }) => {
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: Database["public"]["Tables"]["kakao_consultations"]["Update"] = {
+      updated_at: new Date().toISOString(),
+    };
     if (data.status) patch.status = data.status;
     if (data.note !== undefined) patch.note = data.note || null;
     const { error } = await context.supabase

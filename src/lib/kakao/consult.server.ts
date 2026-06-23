@@ -2,6 +2,7 @@
 // 카카오 상담 인입 처리 — 웹훅(상담톡/챗봇 skill/일반)에서 호출.
 // service_role(supabaseAdmin)로 RLS 우회하여 기록한다.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export type IngestInput = {
   storeCode: string;
@@ -86,7 +87,7 @@ export async function ingestIncomingMessage(input: IngestInput): Promise<string>
     direction: "in",
     content: input.content,
     msg_type: input.msgType ?? "text",
-    raw: input.raw ?? {},
+    raw: (input.raw ?? {}) as Json,
   });
 
   return consultationId;
