@@ -39,19 +39,22 @@ export function QueuePanel({ storeCode, storeName }: Props) {
   const [items, setItems] = useState<QueueItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!storeCode) {
       setItems([]);
       setTotal(0);
+      setLoadError(null);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const [queueRes, genRes] = await Promise.all([
         listQueue({ data: { storeCode } }),
-        listGenJobs({ data: { storeCode, limit: 20 } }),
+        listGenJobs({ data: { storeCode, limit: 20 } }).catch(() => ({ jobs: [] })),
       ]);
       setItems(queueRes.items);
       setTotal(queueRes.total);
@@ -75,6 +78,11 @@ export function QueuePanel({ storeCode, storeName }: Props) {
           completedAt: j.completedAt,
         }))
       );
+    } catch (e) {
+      setItems([]);
+      setTotal(0);
+      setGenSeed([]);
+      setLoadError(e instanceof Error ? e.message : "큐를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -141,6 +149,19 @@ export function QueuePanel({ storeCode, storeName }: Props) {
             <Loader2 className="size-5 animate-spin inline mr-2" />
             큐 로딩 중…
           </div>
+        ) : loadError ? (
+          <div className="py-16 text-center max-w-md mx-auto space-y-3">
+            <p className="text-sm text-destructive font-medium">큐를 불러오지 못했습니다</p>
+            <p className="text-xs text-muted-foreground">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-xs font-medium hover:bg-secondary transition"
+            >
+              <RefreshCw className="size-3.5" />
+              다시 시도
+            </button>
+          </div>
         ) : mergedItems.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
             대기 중인 작업이 없습니다.
@@ -148,7 +169,7 @@ export function QueuePanel({ storeCode, storeName }: Props) {
         ) : (
           <div className="space-y-2 max-w-3xl">
             {mergedItems.map((item) => {
-              const Icon = KIND_ICON[item.kind];
+              const Icon = KIND_ICON[item.kind] ?? Bot;
               return (
                 <div
                   key={`${item.kind}-${item.id}`}

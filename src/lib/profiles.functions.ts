@@ -317,6 +317,13 @@ export const listQueueFn = createServerFn({ method: "POST" })
         .limit(20),
     ]);
 
+    const queryError =
+      schedRes.error?.message ??
+      socialRes.error?.message ??
+      draftRes.error?.message ??
+      genRes.error?.message;
+    if (queryError) throw new Error(queryError);
+
     const items: QueueItem[] = [
       ...(schedRes.data ?? []).map((r) => ({
         id: r.id,
@@ -328,16 +335,19 @@ export const listQueueFn = createServerFn({ method: "POST" })
         storeCode: r.store_code,
         createdAt: r.created_at,
       })),
-      ...(socialRes.data ?? []).map((r) => ({
-        id: r.id,
-        kind: "social" as const,
-        title: r.caption.slice(0, 40) + (r.caption.length > 40 ? "…" : ""),
-        channel: r.platform,
-        status: r.status,
-        scheduledAt: r.scheduled_at,
-        storeCode: r.store_code,
-        createdAt: r.created_at,
-      })),
+      ...(socialRes.data ?? []).map((r) => {
+        const caption = r.caption ?? "";
+        return {
+          id: r.id,
+          kind: "social" as const,
+          title: caption ? caption.slice(0, 40) + (caption.length > 40 ? "…" : "") : "소셜 게시물",
+          channel: r.platform,
+          status: r.status,
+          scheduledAt: r.scheduled_at,
+          storeCode: r.store_code,
+          createdAt: r.created_at,
+        };
+      }),
       ...(draftRes.data ?? []).map((r) => ({
         id: r.id,
         kind: "draft" as const,
