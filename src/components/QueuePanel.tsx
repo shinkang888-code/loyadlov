@@ -56,12 +56,13 @@ export function QueuePanel({ storeCode, storeName }: Props) {
         listQueue({ data: { storeCode } }),
         listGenJobs({ data: { storeCode, limit: 20 } }).catch(() => ({ jobs: [] })),
       ]);
-      setItems(queueRes.items);
-      setTotal(queueRes.total);
+      setItems(Array.isArray(queueRes?.items) ? queueRes.items : []);
+      setTotal(queueRes?.total ?? 0);
 
       // Realtime 훅 시드용 — generation 항목은 Realtime으로 progress 동기화
+      const genJobs = Array.isArray(genRes?.jobs) ? genRes.jobs : [];
       setGenSeed(
-        genRes.jobs.map((j) => ({
+        genJobs.map((j) => ({
           id: j.id,
           storeCode: j.storeCode,
           jobType: j.jobType,

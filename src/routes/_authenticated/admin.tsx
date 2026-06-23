@@ -60,6 +60,7 @@ import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { BulkGenerateDialog } from "@/components/BulkGenerateDialog";
 import { BlogComposerPanel } from "@/components/BlogComposerPanel";
 import { MediaStudioPanel } from "@/components/MediaStudioPanel";
+import { PanelErrorBoundary } from "@/components/PanelErrorBoundary";
 import { JobNotificationsBell } from "@/components/JobNotificationsBell";
 import { useSocialAccounts } from "@/hooks/useSocialAccounts";
 import {
@@ -282,6 +283,7 @@ function AdminConsole() {
           }}
         />
         <SetupBanner onOpenSettings={() => setNav("settings")} />
+        <PanelErrorBoundary key={nav} label="이 화면">
         {storesLoading && nav === "workspace" ? (
           <div className="flex-1 grid place-items-center text-sm text-muted-foreground">
             <Loader2 className="size-5 animate-spin inline mr-2" />
@@ -332,6 +334,7 @@ function AdminConsole() {
             />
           </div>
         )}
+        </PanelErrorBoundary>
       </div>
       <ChannelOAuthConnectDialog
         open={oauthDialogOpen}
