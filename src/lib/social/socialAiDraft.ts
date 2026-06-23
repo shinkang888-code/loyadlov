@@ -28,8 +28,8 @@ export async function generateSocialCaption(input: {
   const topic = input.topic.trim();
   if (!topic) return { ok: false, error: "주제를 입력하세요." };
 
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) return { ok: false, error: "LOVABLE_API_KEY가 설정되지 않았습니다." };
+  const apiKey = await (await import("@/lib/platformSecrets.server")).resolveLovableApiKey();
+  if (!apiKey) return { ok: false, error: "AI API 키가 설정되지 않았습니다. Admin → 설정에서 LOVABLE API 키를 입력하세요." };
 
   const platformLabel = SOCIAL_PLATFORM_LABELS[input.platform];
   const keywordHint = input.keywords?.length ? `\n포함 키워드: ${input.keywords.join(", ")}` : "";

@@ -8,6 +8,7 @@ import { publishToYouTube } from "@/lib/social/youtubePublisher";
 import { publishNaverBlogFromCaption } from "@/lib/social/naverBlogPublisher";
 import { publishToTikTok } from "@/lib/social/tiktokPublisher";
 import { publishToKakao } from "@/lib/social/kakaoPublisher";
+import { resolveKakaoChannelPublicId } from "@/lib/social/kakaoOAuthSettings";
 import {
   getSocialAccountForPublish,
   markSocialPostFailed,
@@ -105,11 +106,13 @@ export async function publishSocialPost(
       break;
     }
     case "kakao": {
+      const metaChannelId = String(meta.channelId ?? meta.kakaoChannelId ?? "").trim();
+      const channelId = metaChannelId || (await resolveKakaoChannelPublicId());
       result = await publishToKakao({
         accessToken: account.accessToken,
         caption: post.caption,
         mediaUrl,
-        channelId: String(meta.channelId ?? meta.kakaoChannelId ?? "") || null,
+        channelId,
       });
       break;
     }

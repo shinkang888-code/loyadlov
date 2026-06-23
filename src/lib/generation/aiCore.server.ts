@@ -16,8 +16,9 @@ export type TextGenResult = {
 };
 
 export async function generateTextContent(data: TextGenParams): Promise<TextGenResult> {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+  const { resolveLovableApiKey } = await import("@/lib/platformSecrets.server");
+  const apiKey = await resolveLovableApiKey();
+  if (!apiKey) throw new Error("LOVABLE_API_KEY missing — 설정 탭에서 AI API 키를 입력하세요.");
 
   const model = "google/gemini-2.5-flash";
   const tone = data.tone?.length ? data.tone.join(", ") : "친근하고 신뢰감 있는";
@@ -101,8 +102,9 @@ export type ImageGenResult = {
 };
 
 export async function generateImageContent(prompt: string): Promise<ImageGenResult> {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+  const { resolveLovableApiKey } = await import("@/lib/platformSecrets.server");
+  const apiKey = await resolveLovableApiKey();
+  if (!apiKey) throw new Error("LOVABLE_API_KEY missing — 설정 탭에서 AI API 키를 입력하세요.");
 
   const model = "openai/gpt-image-2";
 

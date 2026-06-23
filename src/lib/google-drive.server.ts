@@ -34,10 +34,11 @@ export async function getDriveAccessToken(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   if (cachedToken && cachedToken.exp - 60 > now) return cachedToken.token;
 
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-  if (!clientEmail || !privateKey) {
-    throw new Error("Google Drive credentials are not configured.");
+  const creds = await (await import("@/lib/platformSecrets.server")).resolveGoogleDriveCredentials();
+  const clientEmail = creds.clientEmail;
+  const privateKeyPem = creds.privateKey;
+  if (!clientEmail || !privateKeyPem) {
+    throw new Error("Google Drive credentials are not configured. Admin → 설정에서 입력하세요.");
   }
 
   const header = { alg: "RS256", typ: "JWT" };
@@ -50,16 +51,16 @@ export async function getDriveAccessToken(): Promise<string> {
   };
   const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(claim))}`;
 
-  const key = await crypto.subtle.importKey(
+  const cryptoKey = await crypto.subtle.importKey(
     "pkcs8",
-    pemToArrayBuffer(privateKey),
+    pemToArrayBuffer(privateKeyPem),
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["sign"],
   );
   const sig = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
-    key,
+    cryptoKey,
     new TextEncoder().encode(signingInput),
   );
   const jwt = `${signingInput}.${b64url(sig)}`;

@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { generateContent } from "@/lib/ai.functions";
-import { saveDraft, scheduleDraft, listSchedule, unscheduleSlot, getStoreDrivePathFn, type ScheduleRow } from "@/lib/drafts.functions";
+import { saveDraft, scheduleDraft, listSchedule, unscheduleSlot, getStoreDrivePathFn, listDrafts, type ScheduleRow } from "@/lib/drafts.functions";
+import { generateVideoStoryboard } from "@/lib/video.functions";
 import { streamImage } from "@/lib/streamImage";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -49,7 +50,8 @@ import showcase3 from "@/assets/showcase-3.jpg";
 import { LeadsPanel } from "@/components/LeadsPanel";
 import { AssetsPanel } from "@/components/AssetsPanel";
 import { SocialPublishPanel } from "@/components/SocialPublishPanel";
-import { OAuthSettingsPanel } from "@/components/OAuthSettingsPanel";
+import { PlatformSetupWizard } from "@/components/PlatformSetupWizard";
+import { SetupBanner } from "@/components/SetupBanner";
 import { ChannelOAuthConnectDialog } from "@/components/ChannelOAuthConnectDialog";
 import { QueuePanel } from "@/components/QueuePanel";
 import { MembersPanel } from "@/components/MembersPanel";
@@ -203,6 +205,8 @@ function AdminConsole() {
     "workspace" | "queue" | "channels" | "leads" | "assets" | "members" | "analytics" | "settings"
   >(initialTab && ["workspace", "queue", "channels", "leads", "assets", "members", "analytics", "settings"].includes(initialTab) ? initialTab : "workspace");
 
+  const [workspaceReset, setWorkspaceReset] = useState(0);
+
   const [oauthDialogOpen, setOauthDialogOpen] = useState(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("setup") === "oauth";
@@ -269,7 +273,12 @@ function AdminConsole() {
           active={active}
           storeCode={active.uid !== "—" ? active.uid : undefined}
           onBulkGenerate={() => setBulkDialogOpen(true)}
+          onNewContent={() => {
+            setNav("workspace");
+            setWorkspaceReset((n) => n + 1);
+          }}
         />
+        <SetupBanner onOpenSettings={() => setNav("settings")} />
         {storesLoading && nav === "workspace" ? (
           <div className="flex-1 grid place-items-center text-sm text-muted-foreground">
             <Loader2 className="size-5 animate-spin inline mr-2" />
@@ -293,7 +302,7 @@ function AdminConsole() {
         ) : nav === "analytics" ? (
           <AnalyticsPanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
         ) : nav === "settings" ? (
-          <OAuthSettingsPanel />
+          <PlatformSetupWizard storeCode={active.uid !== "—" ? active.uid : undefined} />
         ) : stores.length === 0 ? (
           <div className="flex-1 grid place-items-center p-8 text-center">
             <div className="max-w-md space-y-3">
@@ -312,7 +321,7 @@ function AdminConsole() {
               onRefresh={() => void loadStores()}
               loading={storesLoading}
             />
-            <Workspace client={active} />
+            <Workspace client={active} resetSignal={workspaceReset} />
             <AiPanel
               client={active}
               storeCode={active.uid !== "—" ? active.uid : undefined}
@@ -363,7 +372,7 @@ function SideNav({
     { id: "leads", label: "상담 리드", Icon: Bell },
     { id: "members", label: "회원 관리", Icon: Users },
     { id: "analytics", label: "성과 리포트", Icon: Activity },
-    { id: "settings", label: "설정", Icon: Settings },
+    { id: "settings", label: "설정 & API", Icon: Settings },
   ];
   return (
     <aside className="w-[240px] shrink-0 bg-card border-r border-border flex flex-col">
@@ -443,12 +452,14 @@ function TopBar({
   active,
   storeCode,
   onBulkGenerate,
+  onNewContent,
 }: {
   query: string;
   setQuery: (v: string) => void;
   active: Client;
   storeCode?: string;
   onBulkGenerate?: () => void;
+  onNewContent?: () => void;
 }) {
   return (
     <header className="h-16 shrink-0 bg-card border-b border-border flex items-center gap-4 px-5">
@@ -474,10 +485,18 @@ function TopBar({
       <JobNotificationsBell storeCode={storeCode} />
       <button
         type="button"
+        onClick={onNewContent}
+        className="hidden md:inline-flex items-center gap-1.5 h-10 px-4 rounded-xl border border-border bg-secondary text-sm font-semibold hover:bg-secondary/80 transition"
+      >
+        <Plus className="size-4" />
+        새 콘텐츠
+      </button>
+      <button
+        type="button"
         onClick={onBulkGenerate}
         className="hidden md:inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-brand text-primary-foreground text-sm font-semibold shadow-navy hover:opacity-90 transition"
       >
-        <Plus className="size-4" />
+        <Sparkles className="size-4" />
         AI 대량 생성
       </button>
       <button
@@ -570,16 +589,59 @@ function StatusDot({ status }: { status: Client["status"] }) {
 }
 
 /* ---------------- Workspace (center) ---------------- */
-function Workspace({ client }: { client: Client }) {
+function Workspace({ client, resetSignal = 0 }: { client: Client; resetSignal?: number }) {
+  const listDraftsFn = useServerFn(listDrafts);
   const [tab, setTab] = useState<"text" | "image" | "video" | "schedule">("text");
-  const [body, setBody] = useState(SAMPLE_BODY);
-  const [hashtags, setHashtags] = useState<string[]>(SAMPLE_TAGS[0]);
-  const [keyword, setKeyword] = useState("미나리삼겹살 신메뉴 출시");
+  const [body, setBody] = useState("");
+  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [keyword, setKeyword] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
   const [aiModel, setAiModel] = useState<string | null>(null);
   const [publishPlatform, setPublishPlatform] = useState<SocialPlatform>("instagram");
   const storeCode = client.uid !== "—" ? client.uid : undefined;
+
+  const loadLatestDraft = useCallback(async () => {
+    if (!storeCode) {
+      setBody("");
+      setHashtags([]);
+      setImageUrl(null);
+      setVideoUrl("");
+      setKeyword("");
+      return;
+    }
+    try {
+      const drafts = await listDraftsFn({ data: { storeCode } });
+      const latest = drafts[0];
+      if (latest) {
+        setBody(latest.body);
+        setHashtags(Array.isArray(latest.hashtags) ? latest.hashtags : []);
+        setImageUrl(latest.image_urls?.[0] ?? null);
+        setKeyword(latest.title?.trim() || client.store);
+      } else {
+        setBody("");
+        setHashtags([]);
+        setImageUrl(null);
+        setKeyword(client.store);
+      }
+    } catch {
+      setKeyword(client.store);
+    }
+  }, [client.store, listDraftsFn, storeCode]);
+
+  useEffect(() => {
+    if (resetSignal > 0) {
+      setBody("");
+      setHashtags([]);
+      setImageUrl(null);
+      setVideoUrl("");
+      setKeyword(client.store);
+      setTab("text");
+      toast.success("새 콘텐츠 작성을 시작합니다.");
+      return;
+    }
+    void loadLatestDraft();
+  }, [client.uid, resetSignal, loadLatestDraft, client.store]);
 
   return (
     <main className="flex-1 min-w-0 overflow-y-auto">
@@ -655,8 +717,11 @@ function Workspace({ client }: { client: Client }) {
         {tab === "video" && (
           <VideoTab
             client={client}
+            body={body}
+            keyword={keyword}
             videoUrl={videoUrl}
             onVideoUrlChange={setVideoUrl}
+            onCaptionChange={setBody}
             onPlatformChange={setPublishPlatform}
           />
         )}
@@ -743,11 +808,7 @@ function TextTab({
       }
       onModel?.(res.model ?? null);
     } catch (e) {
-      setAiError("AI 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-      // fallback to sample
-      setTagSetIdx((i) => (i + 1) % SAMPLE_TAGS.length);
-      setBody(SAMPLE_BODY + `\n\n[키워드: ${keyword}]`);
-      onHashtags?.(SAMPLE_TAGS[(tagSetIdx + 1) % SAMPLE_TAGS.length]);
+      setAiError("AI 생성에 실패했습니다. LOVABLE_API_KEY와 네트워크를 확인한 뒤 다시 시도해 주세요.");
     } finally {
       setGenerating(false);
     }
@@ -758,6 +819,15 @@ function TextTab({
     [body, client.industry, client.tone]
   );
   const toneLabel = client.tone.length ? client.tone.join(" · ") : "감성적 · 신뢰감";
+
+  async function copyBody() {
+    try {
+      await navigator.clipboard.writeText(body);
+      toast.success("본문이 클립보드에 복사되었습니다.");
+    } catch {
+      toast.error("클립보드 복사에 실패했습니다.");
+    }
+  }
 
   return (
     <div className="grid lg:grid-cols-5 gap-5">
@@ -799,7 +869,12 @@ function TextTab({
         />
         <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
           <span>{body.length} / 2200자</span>
-          <button className="inline-flex items-center gap-1 hover:text-foreground transition">
+          <button
+            type="button"
+            onClick={() => void copyBody()}
+            disabled={!body.trim()}
+            className="inline-flex items-center gap-1 hover:text-foreground transition disabled:opacity-40"
+          >
             <Copy className="size-3" /> 클립보드 복사
           </button>
         </div>
@@ -1005,22 +1080,57 @@ function ImageTab({
 /* ----- Video tab ----- */
 function VideoTab({
   client,
+  body,
+  keyword,
   videoUrl,
   onVideoUrlChange,
+  onCaptionChange,
   onPlatformChange,
 }: {
   client: Client;
+  body: string;
+  keyword: string;
   videoUrl: string;
   onVideoUrlChange: (v: string) => void;
+  onCaptionChange: (v: string) => void;
   onPlatformChange: (p: SocialPlatform) => void;
 }) {
   const [target, setTarget] = useState<"tiktok" | "youtube">("tiktok");
+  const [generating, setGenerating] = useState(false);
+  const [storyboard, setStoryboard] = useState<{
+    hook: string;
+    scenes: { durationSec: number; visual: string; onScreenText: string }[];
+    note: string;
+  } | null>(null);
+  const generateStoryboard = useServerFn(generateVideoStoryboard);
 
   useEffect(() => {
     onPlatformChange(target === "tiktok" ? "tiktok" : "youtube");
   }, [target, onPlatformChange]);
 
   const platform = target === "tiktok" ? "tiktok" : "youtube";
+
+  async function handleGenerateStoryboard() {
+    setGenerating(true);
+    try {
+      const res = await generateStoryboard({
+        data: {
+          store: client.store,
+          industry: client.industry,
+          keyword: keyword || client.store,
+          caption: body,
+          platform: target,
+        },
+      });
+      setStoryboard({ hook: res.hook, scenes: res.scenes, note: res.note });
+      if (res.caption?.trim()) onCaptionChange(res.caption);
+      toast.success("AI 스토리보드가 생성되었습니다.");
+    } catch {
+      toast.error("스토리보드 생성에 실패했습니다.");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <div className="grid lg:grid-cols-5 gap-5">
@@ -1029,7 +1139,17 @@ function VideoTab({
           <div className="text-sm font-semibold flex items-center gap-2">
             <Film className="size-4 text-primary" /> 릴스 / 쇼츠 발행 준비
           </div>
-          <div className="flex gap-1 p-1 rounded-lg bg-secondary border border-border">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleGenerateStoryboard()}
+              disabled={generating}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand text-primary-foreground text-xs font-semibold disabled:opacity-60"
+            >
+              {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />}
+              AI 스토리보드
+            </button>
+            <div className="flex gap-1 p-1 rounded-lg bg-secondary border border-border">
             <button
               type="button"
               onClick={() => setTarget("tiktok")}
@@ -1048,6 +1168,7 @@ function VideoTab({
             >
               YouTube Shorts
             </button>
+          </div>
           </div>
         </div>
 
@@ -1074,11 +1195,26 @@ function VideoTab({
       </div>
 
       <div className="lg:col-span-2 space-y-5">
+        {storyboard && (
+          <div className="rounded-2xl bg-card border border-border p-5 space-y-3">
+            <div className="text-sm font-semibold">AI 스토리보드</div>
+            <p className="text-xs font-medium text-primary">{storyboard.hook}</p>
+            <ol className="space-y-2 text-xs text-muted-foreground">
+              {storyboard.scenes.map((s, i) => (
+                <li key={i} className="rounded-lg bg-secondary p-2 border border-border">
+                  <span className="font-mono text-[10px] text-foreground">{s.durationSec}s</span> — {s.visual}
+                  {s.onScreenText ? ` · "${s.onScreenText}"` : ""}
+                </li>
+              ))}
+            </ol>
+            <p className="text-[10px] text-muted-foreground">{storyboard.note}</p>
+          </div>
+        )}
         <div className="rounded-2xl bg-card border border-border p-5">
           <div className="text-sm font-semibold mb-2">{client.store}</div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            본문·해시태그 탭에서 작성한 캡션과 함께 하단 발행 바에서 {SOCIAL_PLATFORM_LABELS[platform]}로 바로
-            게시할 수 있습니다. AI 영상 생성(Sora · Runway)은 추후 연결 예정입니다.
+            AI 스토리보드로 촬영 가이드를 받은 뒤 mp4 URL을 입력하고, 본문 탭 캡션과 함께 하단 발행 바에서{" "}
+            {SOCIAL_PLATFORM_LABELS[platform]}로 게시할 수 있습니다.
           </p>
         </div>
         <div className="rounded-2xl bg-brand text-primary-foreground p-5">

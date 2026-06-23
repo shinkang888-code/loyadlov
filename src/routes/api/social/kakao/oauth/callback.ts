@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { verifySocialOAuthState } from "@/lib/social/oauthState";
 import { exchangeKakaoCode, fetchKakaoProfile } from "@/lib/social/kakaoOAuth";
+import { resolveKakaoChannelPublicId } from "@/lib/social/kakaoOAuthSettings";
 import { upsertSocialAccount } from "@/lib/social/socialAccountServer";
 
 export const Route = createFileRoute("/api/social/kakao/oauth/callback")({
@@ -41,6 +42,7 @@ export const Route = createFileRoute("/api/social/kakao/oauth/callback")({
         }
 
         const expiresAt = new Date(Date.now() + tokens.expiresIn * 1000).toISOString();
+        const channelPublicId = await resolveKakaoChannelPublicId();
 
         await upsertSocialAccount({
           storeCode: parsed.storeCode,
@@ -50,7 +52,13 @@ export const Route = createFileRoute("/api/social/kakao/oauth/callback")({
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           tokenExpiresAt: expiresAt,
-          metadata: { provider: "kakao", kakaoId: profile.id },
+          metadata: {
+            provider: "kakao",
+            kakaoId: profile.id,
+            ...(channelPublicId
+              ? { channelId: channelPublicId, kakaoChannelId: channelPublicId }
+              : {}),
+          },
           connectedBy: parsed.loginId,
         });
 

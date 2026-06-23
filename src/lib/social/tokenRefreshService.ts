@@ -31,7 +31,8 @@ export async function refreshExpiringSocialTokens(): Promise<{
           errors.push(`${account.id}: refresh token 복호화 실패`);
           continue;
         }
-        const appOrigin = process.env.APP_URL?.trim() || "https://localhost";
+        const { resolveAppUrl } = await import("@/lib/platformSecrets.server");
+        const appOrigin = await resolveAppUrl("https://localhost");
         const client = await createGoogleOAuthClient(getYouTubeRedirectUri(appOrigin));
         if (!client) {
           failed++;

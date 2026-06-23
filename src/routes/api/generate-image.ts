@@ -8,8 +8,9 @@ export const Route = createFileRoute("/api/generate-image")({
         if (!prompt || prompt.length < 2) {
           return new Response("prompt required", { status: 400 });
         }
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+        const { resolveLovableApiKey } = await import("@/lib/platformSecrets.server");
+        const key = await resolveLovableApiKey();
+        if (!key) return new Response("AI API 키 미설정 — Admin 설정 탭에서 입력하세요.", { status: 500 });
 
         const upstream = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
           method: "POST",

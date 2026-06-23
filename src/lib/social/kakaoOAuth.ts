@@ -34,6 +34,7 @@ export async function buildKakaoOAuthUrl(
     client_id: creds.restApiKey,
     redirect_uri: getKakaoRedirectUri(origin),
     response_type: "code",
+    scope: "profile_nickname,talk_message",
     state,
   });
 

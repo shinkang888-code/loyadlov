@@ -4,8 +4,9 @@ import {
   refreshExpiringSocialTokens,
 } from "@/lib/social/tokenRefreshService";
 
-function isCronAuthorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
+async function isCronAuthorized(request: Request): Promise<boolean> {
+  const { resolveCronSecret } = await import("@/lib/platformSecrets.server");
+  const secret = await resolveCronSecret();
   if (!secret) return false;
   const auth = request.headers.get("authorization");
   if (auth === `Bearer ${secret}`) return true;
@@ -14,12 +15,12 @@ function isCronAuthorized(request: Request): boolean {
 }
 
 async function runCron(request: Request) {
-  if (!isCronAuthorized(request)) {
+  if (!(await isCronAuthorized(request))) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
-  const origin =
-    process.env.APP_URL?.trim()?.replace(/\/$/, "") || new URL(request.url).origin;
+  const { resolveAppUrl } = await import("@/lib/platformSecrets.server");
+  const origin = (await resolveAppUrl()).replace(/\/$/, "") || new URL(request.url).origin;
 
   const [refresh, publish] = await Promise.all([
     refreshExpiringSocialTokens(),

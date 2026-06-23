@@ -79,6 +79,8 @@ export async function upsertSocialAccount(input: {
   metadata?: Record<string, unknown>;
   connectedBy: string;
 }): Promise<SocialAccountPublic | null> {
+  const { syncEncryptionKeyCache } = await import("@/lib/platformSecrets.server");
+  await syncEncryptionKeyCache();
   const row = {
     store_code: input.storeCode,
     platform: input.platform,

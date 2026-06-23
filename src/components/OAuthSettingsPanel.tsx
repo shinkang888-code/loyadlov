@@ -12,7 +12,7 @@ import {
   saveKakaoOAuthSettingsFn,
 } from "@/lib/social.functions";
 
-export function OAuthSettingsPanel() {
+export function OAuthSettingsPanel({ embedded = false }: { embedded?: boolean }) {
   const getSettings = useServerFn(getOAuthSettingsFn);
   const saveMeta = useServerFn(saveMetaOAuthSettingsFn);
   const saveNaver = useServerFn(saveNaverOAuthSettingsFn);
@@ -36,6 +36,7 @@ export function OAuthSettingsPanel() {
   const [tiktokEnabled, setTiktokEnabled] = useState(true);
   const [kakaoRestKey, setKakaoRestKey] = useState("");
   const [kakaoClientSecret, setKakaoClientSecret] = useState("");
+  const [kakaoChannelPublicId, setKakaoChannelPublicId] = useState("");
   const [kakaoEnabled, setKakaoEnabled] = useState(true);
   const [status, setStatus] = useState({
     meta: false,
@@ -104,6 +105,7 @@ export function OAuthSettingsPanel() {
             settings: {
               restApiKey: kakaoRestKey.trim() || undefined,
               clientSecret: kakaoClientSecret.trim() || undefined,
+              channelPublicId: kakaoChannelPublicId.trim() || undefined,
               enabled: kakaoEnabled,
             },
           },
@@ -134,7 +136,7 @@ export function OAuthSettingsPanel() {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto flex-1 max-w-2xl">
+    <div className={embedded ? "space-y-4 max-w-none" : "p-6 space-y-6 overflow-y-auto flex-1 max-w-2xl"}>
       <div className="rounded-2xl bg-card border border-border p-5">
         <h2 className="text-sm font-semibold flex items-center gap-2 mb-4">
           <ShieldCheck className="size-4 text-primary" /> OAuth 연동 상태
@@ -144,7 +146,7 @@ export function OAuthSettingsPanel() {
           <li>YouTube (Google OAuth): {status.youtube ? "✅ 설정됨" : "❌ 미설정"}</li>
           <li>네이버 블로그: {status.naver ? "✅ 설정됨" : "❌ 미설정"}</li>
           <li>TikTok: {status.tiktok ? "✅ 설정됨" : "❌ 미설정"}</li>
-          <li>카카오톡: {status.kakao ? "✅ 설정됨" : "❌ 미설정"}</li>
+          <li>카카오톡: {status.kakao ? "✅ 설정됨" : "❌ 미설정"} (채널 ID 별도)</li>
         </ul>
       </div>
 
@@ -250,6 +252,12 @@ export function OAuthSettingsPanel() {
           placeholder="KAKAO_CLIENT_SECRET"
           type="password"
           className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm"
+        />
+        <input
+          value={kakaoChannelPublicId}
+          onChange={(e) => setKakaoChannelPublicId(e.target.value)}
+          placeholder="KAKAO_CHANNEL_PUBLIC_ID (예: _ZeUTxl)"
+          className="w-full h-10 px-3 rounded-xl bg-secondary border border-border text-sm font-mono"
         />
       </div>
 

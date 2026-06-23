@@ -2,9 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-function rootFolder(): string {
-  const id = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
-  if (!id) throw new Error("GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured.");
+async function rootFolder(): Promise<string> {
+  const { resolveGoogleDriveCredentials } = await import("@/lib/platformSecrets.server");
+  const { rootFolderId } = await resolveGoogleDriveCredentials();
+  const id = rootFolderId ?? process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID?.trim();
+  if (!id) throw new Error("Google Drive 루트 폴더 ID가 설정되지 않았습니다. Admin → 설정에서 입력하세요.");
   return id;
 }
 
@@ -15,8 +17,8 @@ export const listDriveAssets = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const { listFolderFiles } = await import("./google-drive.server");
-    const files = await listFolderFiles(data.folderId ?? rootFolder());
-    return { files, rootFolderId: rootFolder() };
+    const files = await listFolderFiles(data.folderId ?? (await rootFolder()));
+    return { files, rootFolderId: await rootFolder() };
   });
 
 export const uploadDriveAsset = createServerFn({ method: "POST" })
@@ -35,7 +37,7 @@ export const uploadDriveAsset = createServerFn({ method: "POST" })
     const { uploadFileToDrive } = await import("./google-drive.server");
     const bin = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
     const file = await uploadFileToDrive({
-      folderId: data.folderId ?? rootFolder(),
+      folderId: data.folderId ?? (await rootFolder()),
       name: data.name,
       mimeType: data.mimeType,
       data: bin,

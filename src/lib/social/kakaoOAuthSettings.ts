@@ -5,6 +5,8 @@ export const KAKAO_OAUTH_SETTINGS_KEY = "kakao_oauth_settings";
 export type KakaoOAuthSettings = {
   restApiKey?: string;
   clientSecret?: string;
+  /** 카카오톡 채널 Public ID (예: _ZeUTxl) */
+  channelPublicId?: string;
   enabled?: boolean;
 };
 
@@ -59,4 +61,12 @@ export async function saveKakaoOAuthSettings(settings: KakaoOAuthSettings): Prom
     updated_at: new Date().toISOString(),
   });
   return !error;
+}
+
+/** OAuth 발행·콜백에서 사용할 채널 Public ID (env > DB) */
+export async function resolveKakaoChannelPublicId(): Promise<string | null> {
+  const envId = process.env.KAKAO_CHANNEL_PUBLIC_ID?.trim() ?? "";
+  if (envId) return envId;
+  const fromDb = await getDbSettings();
+  return fromDb?.channelPublicId?.trim() || null;
 }

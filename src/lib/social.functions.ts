@@ -39,6 +39,7 @@ import {
 import {
   getKakaoOAuthCredentials,
   saveKakaoOAuthSettings,
+  resolveKakaoChannelPublicId,
   type KakaoOAuthSettings,
 } from "@/lib/social/kakaoOAuthSettings";
 import { resolveRequestedStoreCode } from "@/lib/storeContext.server";
@@ -119,7 +120,8 @@ export const publishSocialPostFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const storeCode = await resolveStore(context.supabase, context.userId, data.storeCode);
-    const origin = process.env.APP_URL?.trim() || "https://localhost";
+    const { resolveAppUrl } = await import("@/lib/platformSecrets.server");
+    const origin = await resolveAppUrl("https://localhost");
     const result = await publishSocialPostById(data.postId, origin);
     if (!result.ok) throw new Error(result.error);
 
@@ -141,7 +143,8 @@ export const retrySocialPostFn = createServerFn({ method: "POST" })
     await resolveStore(context.supabase, context.userId, null);
     const post = await resetSocialPostForRetry(data.postId);
     if (!post) throw new Error("재시도 준비 실패");
-    const origin = process.env.APP_URL?.trim() || "https://localhost";
+    const { resolveAppUrl } = await import("@/lib/platformSecrets.server");
+    const origin = await resolveAppUrl("https://localhost");
     const result = await publishSocialPostById(data.postId, origin);
     if (!result.ok) throw new Error(result.error);
     return result;
@@ -189,12 +192,13 @@ export const listNaverCategoriesFn = createServerFn({ method: "POST" })
 export const getOAuthSettingsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const [meta, naver, youtube, tiktok, kakao] = await Promise.all([
+    const [meta, naver, youtube, tiktok, kakao, kakaoChannelId] = await Promise.all([
       getMetaOAuthCredentials(),
       getNaverOAuthCredentials(),
       getYouTubeOAuthCredentials(),
       getTikTokOAuthCredentials(),
       getKakaoOAuthCredentials(),
+      resolveKakaoChannelPublicId(),
     ]);
     return {
       meta: { configured: Boolean(meta.appId && meta.appSecret), source: meta.source },
@@ -209,6 +213,7 @@ export const getOAuthSettingsFn = createServerFn({ method: "POST" })
       },
       kakao: {
         configured: Boolean(kakao.restApiKey && kakao.clientSecret),
+        channelConfigured: Boolean(kakaoChannelId),
         source: kakao.source,
       },
     };

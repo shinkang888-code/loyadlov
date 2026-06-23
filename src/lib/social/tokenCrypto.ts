@@ -6,8 +6,15 @@ import crypto from "crypto";
 
 const ALGO = "aes-256-gcm";
 
+let encryptionKeyOverride: string | null = null;
+
+export function setEncryptionKeyOverride(key: string): void {
+  encryptionKeyOverride = key.trim() || null;
+}
+
 function getKey(): Buffer {
   const raw =
+    encryptionKeyOverride ??
     process.env.SOCIAL_TOKEN_ENCRYPTION_KEY?.trim() ??
     process.env.SESSION_SECRET?.trim() ??
     process.env.SUPABASE_URL?.trim() ??

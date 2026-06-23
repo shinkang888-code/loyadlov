@@ -58,6 +58,7 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected, sto
   const [tiktokEnabled, setTiktokEnabled] = useState(true);
   const [kakaoRestKey, setKakaoRestKey] = useState("");
   const [kakaoClientSecret, setKakaoClientSecret] = useState("");
+  const [kakaoChannelPublicId, setKakaoChannelPublicId] = useState("");
   const [kakaoEnabled, setKakaoEnabled] = useState(true);
 
   const [status, setStatus] = useState({
@@ -137,6 +138,7 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected, sto
             settings: {
               restApiKey: kakaoRestKey.trim() || undefined,
               clientSecret: kakaoClientSecret.trim() || undefined,
+              channelPublicId: kakaoChannelPublicId.trim() || undefined,
               enabled: kakaoEnabled,
             },
           },
@@ -295,6 +297,17 @@ export function ChannelOAuthConnectDialog({ open, onOpenChange, onConnected, sto
               onIdChange={setKakaoRestKey}
               onSecretChange={setKakaoClientSecret}
             />
+            <div className="rounded-xl border border-border bg-secondary/50 p-3 space-y-2">
+              <label className="text-[11px] font-semibold text-muted-foreground">
+                카카오톡 채널 Public ID (예: _ZeUTxl)
+              </label>
+              <input
+                value={kakaoChannelPublicId}
+                onChange={(e) => setKakaoChannelPublicId(e.target.value)}
+                placeholder="KAKAO_CHANNEL_PUBLIC_ID"
+                className="w-full h-9 px-3 rounded-lg bg-card border border-border text-sm font-mono"
+              />
+            </div>
 
             <button
               type="button"
