@@ -186,6 +186,29 @@ export const getMediaJobFn = createServerFn({ method: "POST" })
     return row ?? null;
   });
 
+export const getGaReportFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        propertyId: z.string().max(60).optional(),
+        range: z.enum(["7d", "28d", "90d"]).optional(),
+      })
+      .parse(input)
+  )
+  .handler(async ({ data }) => {
+    const { getGaReport } = await import("@/lib/integrations/googleAnalytics.server");
+    try {
+      const report = await getGaReport({ propertyId: data.propertyId, range: data.range });
+      return { configured: true as const, report };
+    } catch (e) {
+      return {
+        configured: false as const,
+        error: e instanceof Error ? e.message : "GA 리포트를 불러오지 못했습니다.",
+      };
+    }
+  });
+
 export const listMediaAssetsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>

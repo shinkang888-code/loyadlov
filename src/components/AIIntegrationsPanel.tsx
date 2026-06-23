@@ -47,6 +47,7 @@ export function AIIntegrationsPanel({ embedded = false }: { embedded?: boolean }
   const [falKey, setFalKey] = useState("");
   const [figmaToken, setFigmaToken] = useState("");
   const [canvaApiKey, setCanvaApiKey] = useState("");
+  const [gaPropertyId, setGaPropertyId] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -81,6 +82,7 @@ export function AIIntegrationsPanel({ embedded = false }: { embedded?: boolean }
           falKey: falKey.trim() || undefined,
           figmaToken: figmaToken.trim() || undefined,
           canvaApiKey: canvaApiKey.trim() || undefined,
+          gaPropertyId: gaPropertyId.trim() || undefined,
         },
       });
       toast.success("API 키 저장 완료 — DB에 암호화 저장되어 환경변수처럼 동작합니다.");
@@ -91,6 +93,7 @@ export function AIIntegrationsPanel({ embedded = false }: { embedded?: boolean }
       setFalKey("");
       setFigmaToken("");
       setCanvaApiKey("");
+      setGaPropertyId("");
       await refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "저장 실패");
@@ -284,6 +287,25 @@ export function AIIntegrationsPanel({ embedded = false }: { embedded?: boolean }
           masked={masked.canvaApiKey}
         />
         <TestButton provider="canva" />
+      </section>
+
+      {/* Google Analytics */}
+      <section className="rounded-2xl bg-card border border-border p-5 space-y-3">
+        <h3 className="text-sm font-semibold">Google Analytics (성과 리포트 방문자수)</h3>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          GA4 <strong>속성 ID</strong>(숫자, 예: 123456789)를 입력하세요. 인증은 Google Drive와 동일한
+          서비스 계정을 재사용하므로, 해당 <strong>서비스 계정 이메일을 GA4 속성의 뷰어</strong>로 추가해야 합니다.
+        </p>
+        <SecretField
+          label="GA_PROPERTY_ID (GA4 속성 ID)"
+          hint="GA 관리 > 속성 설정 상단의 '속성 ID' 숫자를 입력하세요."
+          helpUrl="https://developers.google.com/analytics/devguides/reporting/data/v1/property-id"
+          value={gaPropertyId}
+          onChange={setGaPropertyId}
+          type="text"
+          masked={masked.gaPropertyId}
+          placeholder="123456789"
+        />
       </section>
 
       <button

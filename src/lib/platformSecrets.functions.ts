@@ -33,6 +33,7 @@ const SecretsPatch = z
     falKey: z.string().max(500).optional(),
     figmaToken: z.string().max(500).optional(),
     canvaApiKey: z.string().max(2000).optional(),
+    gaPropertyId: z.string().max(60).optional(),
   })
   .partial();
 

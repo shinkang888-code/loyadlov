@@ -29,6 +29,8 @@ export type PlatformSecrets = {
   falKey?: string;
   figmaToken?: string;
   canvaApiKey?: string;
+  // === Google Analytics (성과 리포트) ===
+  gaPropertyId?: string;
 };
 
 export type PlatformSecretField = keyof PlatformSecrets;
@@ -106,6 +108,7 @@ export async function resolvePlatformSecret(field: PlatformSecretField): Promise
     falKey: "FAL_KEY",
     figmaToken: "FIGMA_TOKEN",
     canvaApiKey: "CANVA_API_KEY",
+    gaPropertyId: "GA_PROPERTY_ID",
   };
   const envKey = envMap[field];
   if (envKey) {
@@ -296,6 +299,11 @@ export async function resolveFigmaToken(): Promise<string | undefined> {
 
 export async function resolveCanvaApiKey(): Promise<string | undefined> {
   return resolvePlatformSecret("canvaApiKey");
+}
+
+export async function resolveGaPropertyId(): Promise<string | undefined> {
+  const raw = await resolvePlatformSecret("gaPropertyId");
+  return raw?.replace(/^properties\//, "").trim() || undefined;
 }
 
 /** API 연동 패널용 상태 — 키가 입력되어 있는지(env/DB)만 판정 */
