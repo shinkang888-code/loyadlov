@@ -59,6 +59,69 @@ export async function generateGeminiText(
   return { text, model };
 }
 
+// === 이미지 생성 (Nano Banana 계열) ===
+// Nano Banana       = gemini-2.5-flash-image
+// Nano Banana Pro   = gemini-3-pro-image-preview
+// Nano Banana 2     = gemini-3.1-flash-image-preview
+export const NANO_BANANA_MODELS = {
+  "nano-banana": "gemini-2.5-flash-image",
+  "nano-banana-pro": "gemini-3-pro-image-preview",
+  "nano-banana-2": "gemini-3.1-flash-image-preview",
+} as const;
+
+export type NanoBananaModel = keyof typeof NANO_BANANA_MODELS;
+
+export const DEFAULT_NANO_BANANA_MODEL = "gemini-2.5-flash-image";
+
+/**
+ * Gemini Nano Banana 텍스트→이미지 생성.
+ * 결과는 base64 data URL 로 반환한다.
+ */
+export async function generateGeminiImage(
+  prompt: string,
+  opts: { model?: string } = {}
+): Promise<{ dataUrl: string; mimeType: string; model: string }> {
+  const apiKey = await resolveGeminiApiKey();
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY 미설정 — 관리자 콘솔 'API 연동'에서 키를 입력하세요.");
+  }
+  const model = opts.model || DEFAULT_NANO_BANANA_MODEL;
+
+  const res = await fetch(
+    `${BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Gemini 이미지 ${res.status}: ${detail.slice(0, 200)}`);
+  }
+
+  const json = (await res.json()) as {
+    candidates?: {
+      content?: { parts?: { inlineData?: { data?: string; mimeType?: string } }[] };
+    }[];
+  };
+  const parts = json.candidates?.[0]?.content?.parts ?? [];
+  const imagePart = parts.find((p) => p.inlineData?.data);
+  if (!imagePart?.inlineData?.data) {
+    throw new Error("Gemini 이미지 응답에 이미지 데이터가 없습니다 (안전 필터 차단 가능).");
+  }
+  const mimeType = imagePart.inlineData.mimeType || "image/png";
+  return {
+    dataUrl: `data:${mimeType};base64,${imagePart.inlineData.data}`,
+    mimeType,
+    model,
+  };
+}
+
 /** 키 유효성 점검 (모델 목록 조회) */
 export async function testGemini(): Promise<{ ok: boolean; message: string }> {
   const apiKey = await resolveGeminiApiKey();

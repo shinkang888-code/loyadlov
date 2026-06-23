@@ -105,14 +105,25 @@ export const enqueueMediaGenFn = createServerFn({ method: "POST" })
     z
       .object({
         storeCode: z.string().trim().optional(),
-        provider: z.enum(["higgsfield"]).default("higgsfield"),
-        kind: z.enum(["image", "video"]).default("image"),
-        prompt: z.string().trim().min(1).max(2000),
+        provider: z.enum(["higgsfield", "gemini", "figma", "canva"]).default("higgsfield"),
+        kind: z.enum(["image", "video", "cardnews"]).default("image"),
+        prompt: z.string().trim().max(2000).optional(),
         imageUrl: z.string().url().max(2000).optional(),
         size: z.string().max(20).optional(),
         quality: z.string().max(20).optional(),
         batchSize: z.number().int().min(1).max(4).optional(),
-        model: z.string().max(40).optional(),
+        model: z.string().max(60).optional(),
+        // 카드뉴스
+        topic: z.string().trim().max(300).optional(),
+        slideCount: z.number().int().min(1).max(10).optional(),
+        style: z.string().max(300).optional(),
+        // Figma 템플릿
+        figmaFileKey: z.string().max(200).optional(),
+        figmaNodeIds: z.array(z.string().max(80)).max(10).optional(),
+      })
+      .refine((v) => v.kind === "cardnews" || (v.prompt && v.prompt.trim().length > 0), {
+        message: "이미지/영상 생성에는 프롬프트가 필요합니다.",
+        path: ["prompt"],
       })
       .parse(input)
   )
@@ -129,6 +140,11 @@ export const enqueueMediaGenFn = createServerFn({ method: "POST" })
       quality: data.quality,
       batchSize: data.batchSize,
       model: data.model,
+      topic: data.topic,
+      slideCount: data.slideCount,
+      style: data.style,
+      figmaFileKey: data.figmaFileKey,
+      figmaNodeIds: data.figmaNodeIds,
     };
     const { data: row, error } = await supabase
       .from("generation_jobs")
