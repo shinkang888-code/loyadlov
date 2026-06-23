@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles, ArrowLeft, Play } from "lucide-react";
 import logo from "@/assets/loyard-logo.jpg";
-import { demoLoginFn } from "@/lib/demoAuth.functions";
+import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_PROFILE } from "@/lib/demoAuth.constants";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -64,12 +64,28 @@ function AuthPage() {
     setErr(null);
     setLoading(true);
     try {
-      const { tokenHash } = await demoLoginFn();
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: "magiclink",
+      let { error } = await supabase.auth.signInWithPassword({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
       });
-      if (error) throw error;
+
+      if (error) {
+        const { error: signUpErr } = await supabase.auth.signUp({
+          email: DEMO_EMAIL,
+          password: DEMO_PASSWORD,
+          options: {
+            data: { ...DEMO_PROFILE, is_demo: true },
+          },
+        });
+        if (signUpErr) throw signUpErr;
+
+        const retry = await supabase.auth.signInWithPassword({
+          email: DEMO_EMAIL,
+          password: DEMO_PASSWORD,
+        });
+        if (retry.error) throw retry.error;
+      }
+
       navigate({ to: "/admin" });
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "데모 로그인에 실패했습니다.");

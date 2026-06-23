@@ -1,5 +1,6 @@
 /** 공개 데모 계정 — Google OAuth 없이 대시보드 체험용 */
 export const DEMO_EMAIL = "demo@loyard.app";
+export const DEMO_PASSWORD = "LoyardDemo2026!";
 
 export const DEMO_PROFILE = {
   display_name: "데모 사용자",

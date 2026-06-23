@@ -1,7 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { DEMO_EMAIL, DEMO_PROFILE } from "@/lib/demoAuth.constants";
-
-const DEMO_PASSWORD = "LoyardDemo2026!";
+import { DEMO_EMAIL, DEMO_PROFILE, DEMO_PASSWORD } from "@/lib/demoAuth.constants";
 
 async function findDemoUserId(): Promise<string | null> {
   const { data } = await supabaseAdmin
