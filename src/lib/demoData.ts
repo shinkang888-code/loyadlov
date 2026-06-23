@@ -9,6 +9,11 @@ import type {
   KakaoSettings,
 } from "@/lib/kakaoConsult.functions";
 import type { CrmMember, MemberMessage } from "@/lib/members.functions";
+import type {
+  ThreadbotRules,
+  ThreadbotActivity,
+  ThreadbotSummary,
+} from "@/lib/threadbot.functions";
 
 export const DEMO_STORE_CODE = "DEMO-2026";
 
@@ -513,4 +518,199 @@ export function demoDriveFiles(folderId: string): DemoDriveFile[] {
     ];
   }
   return [];
+}
+
+/* ============================ 쓰레드봇 ============================ */
+export type DemoFeedPost = {
+  id: string;
+  platform: "threads" | "instagram";
+  username: string;
+  avatarColor: string;
+  text: string;
+  likes: number;
+  comments: number;
+  postedAgo: string;
+  planned: "like_reply" | "skip" | null;
+  planReason: string;
+};
+
+export type DemoThreadAccount = {
+  platform: "threads" | "instagram";
+  username: string | null;
+  status: "connected" | "expired" | "disconnected" | "needs_business";
+  expiresInDays: number | null;
+};
+
+export function demoThreadbotRules(): ThreadbotRules {
+  return {
+    storeCode: DEMO_STORE_CODE,
+    botEnabled: true,
+    dryRun: true,
+    enableLike: true,
+    enableReply: true,
+    dailyLikeLimit: 20,
+    dailyReplyLimit: 10,
+    runIntervalMinutes: 120,
+    activeHoursStart: "09:00",
+    activeHoursEnd: "23:00",
+    keywordsInclude: ["카페", "디저트", "브런치", "일상"],
+    keywordsExclude: ["광고", "홍보", "이벤트", "당첨"],
+    tone: "friendly",
+    minPostLength: 15,
+    aiModel: "gemini-2.5-flash",
+    lastRunAt: minsAgo(34),
+  };
+}
+
+export function demoThreadbotSummary(): ThreadbotSummary {
+  return { likes: 12, replies: 5, skips: 8, errors: 1 };
+}
+
+export function demoThreadbotActivity(): ThreadbotActivity[] {
+  return [
+    {
+      id: "demo-act-1",
+      platform: "threads",
+      action: "reply",
+      targetUsername: "@morning_runner",
+      postId: "p-101",
+      postPreview: "오늘 아침 러닝 완료! 한강 바람이 진짜 최고였어요 🏃",
+      replyText: "와 아침 러닝 부지런하시네요! 한강 바람 상상만 해도 상쾌해요 :)",
+      aiReason: "일상·운동 공감 적합",
+      status: "dry_run",
+      createdAt: minsAgo(6),
+    },
+    {
+      id: "demo-act-2",
+      platform: "threads",
+      action: "like",
+      targetUsername: "@cafe_daily",
+      postId: "p-102",
+      postPreview: "흑임자 라떼 신메뉴 내봤는데 반응이 좋네요 ☕",
+      replyText: null,
+      aiReason: "카페·디저트 키워드 일치",
+      status: "dry_run",
+      createdAt: minsAgo(14),
+    },
+    {
+      id: "demo-act-3",
+      platform: "threads",
+      action: "skip",
+      targetUsername: "@promo_event_kr",
+      postId: "p-103",
+      postPreview: "★초특가★ 지금 구매하면 50% 할인 이벤트 당첨!!",
+      replyText: null,
+      aiReason: "제외 키워드(광고·이벤트·당첨) 감지 → 스킵",
+      status: "success",
+      createdAt: minsAgo(21),
+    },
+    {
+      id: "demo-act-4",
+      platform: "instagram",
+      action: "reply",
+      targetUsername: "@brunch_lover",
+      postId: "p-104",
+      postPreview: "주말 브런치 세트 다녀왔어요. 플레이팅 미쳤다…",
+      replyText: "플레이팅 진짜 예쁘네요! 주말 브런치 분위기 너무 좋아 보여요 👏",
+      aiReason: "브런치 키워드 일치, 긍정 톤",
+      status: "dry_run",
+      createdAt: minsAgo(32),
+    },
+    {
+      id: "demo-act-5",
+      platform: "threads",
+      action: "error",
+      targetUsername: "@night_walk",
+      postId: "p-105",
+      postPreview: "야간 산책 중 사진 한 장",
+      replyText: null,
+      aiReason: "Threads API rate limit (429) — 재시도 예정",
+      status: "failed",
+      createdAt: minsAgo(48),
+    },
+    {
+      id: "demo-act-6",
+      platform: "threads",
+      action: "like",
+      targetUsername: "@dessert_diary",
+      postId: "p-106",
+      postPreview: "딸기 케이크 시즌 돌아왔다 🍓",
+      replyText: null,
+      aiReason: "디저트 키워드 일치",
+      status: "dry_run",
+      createdAt: minsAgo(63),
+    },
+  ];
+}
+
+export function demoThreadbotFeed(): DemoFeedPost[] {
+  return [
+    {
+      id: "p-201",
+      platform: "threads",
+      username: "@seoul_foodie",
+      avatarColor: "#f59e0b",
+      text: "오늘 점심으로 먹은 들기름 막국수 인생 맛집 찾음… 이 동네 사시는 분들 꼭 가보세요!",
+      likes: 41,
+      comments: 7,
+      postedAgo: "12분 전",
+      planned: "like_reply",
+      planReason: "맛집·일상 키워드 일치",
+    },
+    {
+      id: "p-202",
+      platform: "threads",
+      username: "@cafe_hopping",
+      avatarColor: "#10b981",
+      text: "주말마다 카페 투어 다니는데 오늘 간 곳 디저트가 너무 예뻐서 사진 백장 찍음 ☕🍰",
+      likes: 88,
+      comments: 15,
+      postedAgo: "27분 전",
+      planned: "like_reply",
+      planReason: "카페·디저트 키워드 일치",
+    },
+    {
+      id: "p-203",
+      platform: "instagram",
+      username: "@daily_brunch",
+      avatarColor: "#8b5cf6",
+      text: "브런치 플레이트 완성! 에그 베네딕트 처음 만들어봤는데 성공적 🍳",
+      likes: 132,
+      comments: 9,
+      postedAgo: "41분 전",
+      planned: "like_reply",
+      planReason: "브런치 키워드 일치",
+    },
+    {
+      id: "p-204",
+      platform: "threads",
+      username: "@bigsale_official",
+      avatarColor: "#ef4444",
+      text: "🔥대박 이벤트🔥 지금 팔로우하고 댓글 남기면 추첨 통해 경품 당첨! 광고 문의 DM",
+      likes: 5,
+      comments: 120,
+      postedAgo: "55분 전",
+      planned: "skip",
+      planReason: "제외 키워드(이벤트·당첨·광고) → 스킵",
+    },
+    {
+      id: "p-205",
+      platform: "threads",
+      username: "@slow_life_kim",
+      avatarColor: "#3b82f6",
+      text: "퇴근하고 동네 한 바퀴 산책. 저녁 공기가 선선해서 기분이 좋다 🌙",
+      likes: 23,
+      comments: 2,
+      postedAgo: "1시간 전",
+      planned: "like_reply",
+      planReason: "일상 공감 적합",
+    },
+  ];
+}
+
+export function demoThreadbotAccounts(): DemoThreadAccount[] {
+  return [
+    { platform: "threads", username: "@loyad_official", status: "connected", expiresInDays: 28 },
+    { platform: "instagram", username: null, status: "needs_business", expiresInDays: null },
+  ];
 }

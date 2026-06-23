@@ -56,6 +56,7 @@ import { SetupBanner } from "@/components/SetupBanner";
 import { ChannelOAuthConnectDialog } from "@/components/ChannelOAuthConnectDialog";
 import { QueuePanel } from "@/components/QueuePanel";
 import { MembersPanel } from "@/components/MembersPanel";
+import { ThreadbotPanel } from "@/components/ThreadbotPanel";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { BulkGenerateDialog } from "@/components/BulkGenerateDialog";
 import { BlogComposerPanel } from "@/components/BlogComposerPanel";
@@ -201,13 +202,14 @@ function AdminConsole() {
           | "leads"
           | "assets"
           | "members"
+          | "threadbot"
           | "analytics"
           | "settings"
           | null)
       : null;
   const [nav, setNav] = useState<
-    "workspace" | "queue" | "channels" | "leads" | "assets" | "members" | "analytics" | "settings"
-  >(initialTab && ["workspace", "queue", "channels", "leads", "assets", "members", "analytics", "settings"].includes(initialTab) ? initialTab : "workspace");
+    "workspace" | "queue" | "channels" | "leads" | "assets" | "members" | "threadbot" | "analytics" | "settings"
+  >(initialTab && ["workspace", "queue", "channels", "leads", "assets", "members", "threadbot", "analytics", "settings"].includes(initialTab) ? initialTab : "workspace");
 
   const [workspaceReset, setWorkspaceReset] = useState(0);
 
@@ -311,6 +313,8 @@ function AdminConsole() {
             storeName={active.store}
             isAdmin={isAdmin}
           />
+        ) : nav === "threadbot" ? (
+          <ThreadbotPanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
         ) : nav === "analytics" ? (
           <AnalyticsPanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
         ) : nav === "settings" ? (
@@ -384,6 +388,7 @@ function SideNav({
     { id: "assets", label: "소재함", Icon: FolderOpen },
     { id: "leads", label: "상담 리드", Icon: Bell },
     { id: "members", label: "회원 관리", Icon: Users },
+    { id: "threadbot", label: "쓰레드봇", Icon: Bot },
     { id: "analytics", label: "성과 리포트", Icon: Activity },
     { id: "settings", label: "설정 & API", Icon: Settings },
   ];

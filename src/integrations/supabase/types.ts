@@ -298,6 +298,144 @@ export type Database = {
           },
         ]
       }
+      threadbot_rules: {
+        Row: {
+          store_code: string
+          bot_enabled: boolean
+          dry_run: boolean
+          enable_like: boolean
+          enable_reply: boolean
+          daily_like_limit: number
+          daily_reply_limit: number
+          run_interval_minutes: number
+          active_hours_start: string
+          active_hours_end: string
+          keywords_include: Json
+          keywords_exclude: Json
+          tone: string
+          min_post_length: number
+          ai_model: string
+          last_run_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          store_code: string
+          bot_enabled?: boolean
+          dry_run?: boolean
+          enable_like?: boolean
+          enable_reply?: boolean
+          daily_like_limit?: number
+          daily_reply_limit?: number
+          run_interval_minutes?: number
+          active_hours_start?: string
+          active_hours_end?: string
+          keywords_include?: Json
+          keywords_exclude?: Json
+          tone?: string
+          min_post_length?: number
+          ai_model?: string
+          last_run_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          store_code?: string
+          bot_enabled?: boolean
+          dry_run?: boolean
+          enable_like?: boolean
+          enable_reply?: boolean
+          daily_like_limit?: number
+          daily_reply_limit?: number
+          run_interval_minutes?: number
+          active_hours_start?: string
+          active_hours_end?: string
+          keywords_include?: Json
+          keywords_exclude?: Json
+          tone?: string
+          min_post_length?: number
+          ai_model?: string
+          last_run_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      threadbot_activity_logs: {
+        Row: {
+          id: string
+          store_code: string
+          platform: string
+          action: string
+          target_username: string | null
+          post_id: string | null
+          post_preview: string | null
+          reply_text: string | null
+          ai_reason: string | null
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          store_code: string
+          platform?: string
+          action: string
+          target_username?: string | null
+          post_id?: string | null
+          post_preview?: string | null
+          reply_text?: string | null
+          ai_reason?: string | null
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          store_code?: string
+          platform?: string
+          action?: string
+          target_username?: string | null
+          post_id?: string | null
+          post_preview?: string | null
+          reply_text?: string | null
+          ai_reason?: string | null
+          status?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      threadbot_accounts: {
+        Row: {
+          id: string
+          store_code: string
+          platform: string
+          username: string | null
+          external_user_id: string | null
+          status: string
+          expires_at: string | null
+          connected_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_code: string
+          platform: string
+          username?: string | null
+          external_user_id?: string | null
+          status?: string
+          expires_at?: string | null
+          connected_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_code?: string
+          platform?: string
+          username?: string | null
+          external_user_id?: string | null
+          status?: string
+          expires_at?: string | null
+          connected_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kakao_channel_settings: {
         Row: {
           auto_reply: string | null
