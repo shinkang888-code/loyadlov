@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+node_modules.corrupt.bak
 dist
 .tmp
 .vercel/output
@@ -34,6 +35,9 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Supabase CLI local link cache
+supabase/.temp/
 
 # Other package managers (this project uses npm)
 bun.lock
