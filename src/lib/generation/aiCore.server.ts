@@ -96,6 +96,77 @@ export async function generateTextContent(data: TextGenParams): Promise<TextGenR
   return { body, hashtags, model };
 }
 
+/* ---------------- 네이버 블로그 장문 원고 ---------------- */
+
+import {
+  buildFallbackReviewDraft,
+  buildReviewDraftPrompt,
+  buildReviewDraftRepairPrompt,
+  parseReviewDraftResponse,
+  validateReviewDraft,
+} from "@/lib/blog/draftAi";
+import type { NormalizedCampaign, ParsedDraft } from "@/lib/blog/types";
+
+const BLOG_DRAFT_SYSTEM_PROMPT = `너는 한국 네이버 블로그 원고를 쓰는 전문 블로거다.
+- 네이버 블로그에 바로 붙여 넣을 수 있는 한국어 원고만 출력한다.
+- 첫 줄은 제목, 다음 줄부터 도입부와 일반 텍스트 소제목들, 마지막 소제목은 '마치며'.
+- 마크다운 기호(#, ##, **), URL, 표, 코드블록, JSON, 후속 질문을 쓰지 않는다.
+- 거절/안내 문구 없이 본문 원고만 출력한다.`;
+
+async function callLovableChat(messages: { role: string; content: string }[]): Promise<string> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "google/gemini-2.5-flash", messages }),
+  });
+  if (res.status === 429) throw new Error("AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.");
+  if (res.status === 402) throw new Error("AI 크레딧이 부족합니다. 워크스페이스 설정에서 크레딧을 추가해 주세요.");
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`AI gateway ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return json.choices?.[0]?.message?.content?.trim() ?? "";
+}
+
+export type BlogDraftResult = ParsedDraft & { model: string };
+
+export async function generateBlogDraft(
+  campaign: NormalizedCampaign,
+  opts: { writer?: string } = {}
+): Promise<BlogDraftResult> {
+  const model = "google/gemini-2.5-flash";
+  const minBody = Math.max(180, Math.floor((campaign.bodyMinCharsNoSpaces || 1000) * 0.6));
+
+  const raw = await callLovableChat([
+    { role: "system", content: BLOG_DRAFT_SYSTEM_PROMPT },
+    { role: "user", content: buildReviewDraftPrompt(campaign, opts) },
+  ]);
+  const parsed = parseReviewDraftResponse(raw);
+  if (validateReviewDraft(parsed, { minBodyLength: minBody }).ok) {
+    return { ...parsed, model };
+  }
+
+  // 1회 재작성 시도
+  try {
+    const repaired = await callLovableChat([
+      { role: "system", content: BLOG_DRAFT_SYSTEM_PROMPT },
+      { role: "user", content: buildReviewDraftRepairPrompt(campaign, opts) },
+    ]);
+    const reparsed = parseReviewDraftResponse(repaired);
+    if (validateReviewDraft(reparsed, { minBodyLength: minBody }).ok) {
+      return { ...reparsed, model };
+    }
+  } catch {
+    /* 폴백으로 진행 */
+  }
+
+  // 로컬 폴백 초안
+  return { ...buildFallbackReviewDraft(campaign, opts), model: `${model} (fallback)` };
+}
+
 export type ImageGenResult = {
   dataUrl: string;
   model: string;

@@ -65,6 +65,96 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_briefs: {
+        Row: {
+          additional_requests: string
+          body_min_chars_no_spaces: number
+          created_at: string
+          created_by: string | null
+          id: string
+          keyword_required_count: number
+          keywords: string[]
+          media_requirements: Json
+          store_code: string
+          subject_value: string
+          writer_style: string
+        }
+        Insert: {
+          additional_requests?: string
+          body_min_chars_no_spaces?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          keyword_required_count?: number
+          keywords?: string[]
+          media_requirements?: Json
+          store_code: string
+          subject_value: string
+          writer_style?: string
+        }
+        Update: {
+          additional_requests?: string
+          body_min_chars_no_spaces?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          keyword_required_count?: number
+          keywords?: string[]
+          media_requirements?: Json
+          store_code?: string
+          subject_value?: string
+          writer_style?: string
+        }
+        Relationships: []
+      }
+      campaign_verifications: {
+        Row: {
+          body: Json | null
+          brief_id: string | null
+          created_at: string
+          created_by: string | null
+          draft_id: string | null
+          id: string
+          keywords: Json | null
+          media: Json | null
+          passed: boolean
+          report_text: string | null
+          request_results: Json | null
+          source_url: string | null
+          store_code: string
+        }
+        Insert: {
+          body?: Json | null
+          brief_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          draft_id?: string | null
+          id?: string
+          keywords?: Json | null
+          media?: Json | null
+          passed?: boolean
+          report_text?: string | null
+          request_results?: Json | null
+          source_url?: string | null
+          store_code: string
+        }
+        Update: {
+          body?: Json | null
+          brief_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          draft_id?: string | null
+          id?: string
+          keywords?: Json | null
+          media?: Json | null
+          passed?: boolean
+          report_text?: string | null
+          request_results?: Json | null
+          source_url?: string | null
+          store_code?: string
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           admin_note: string | null

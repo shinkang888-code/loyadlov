@@ -42,6 +42,7 @@ import {
   Clock,
   FolderOpen,
   Youtube,
+  PenLine,
 } from "lucide-react";
 import logo from "@/assets/loyard-logo.jpg";
 import showcase1 from "@/assets/showcase-1.jpg";
@@ -57,6 +58,7 @@ import { QueuePanel } from "@/components/QueuePanel";
 import { MembersPanel } from "@/components/MembersPanel";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { BulkGenerateDialog } from "@/components/BulkGenerateDialog";
+import { BlogComposerPanel } from "@/components/BlogComposerPanel";
 import { JobNotificationsBell } from "@/components/JobNotificationsBell";
 import { useSocialAccounts } from "@/hooks/useSocialAccounts";
 import {
@@ -591,7 +593,7 @@ function StatusDot({ status }: { status: Client["status"] }) {
 /* ---------------- Workspace (center) ---------------- */
 function Workspace({ client, resetSignal = 0 }: { client: Client; resetSignal?: number }) {
   const listDraftsFn = useServerFn(listDrafts);
-  const [tab, setTab] = useState<"text" | "image" | "video" | "schedule">("text");
+  const [tab, setTab] = useState<"text" | "image" | "video" | "blog" | "schedule">("text");
   const [body, setBody] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
@@ -679,6 +681,7 @@ function Workspace({ client, resetSignal = 0 }: { client: Client; resetSignal?: 
             { id: "text", label: "본문 + 해시태그", Icon: Type },
             { id: "image", label: "이미지", Icon: ImageIcon },
             { id: "video", label: "릴스 / 영상", Icon: Film },
+            { id: "blog", label: "블로그 자동작성", Icon: PenLine },
             { id: "schedule", label: "스케줄", Icon: Calendar },
           ].map((t) => {
             const isOn = tab === (t.id as any);
@@ -723,6 +726,13 @@ function Workspace({ client, resetSignal = 0 }: { client: Client; resetSignal?: 
             onVideoUrlChange={setVideoUrl}
             onCaptionChange={setBody}
             onPlatformChange={setPublishPlatform}
+          />
+        )}
+        {tab === "blog" && (
+          <BlogComposerPanel
+            storeCode={storeCode}
+            storeName={client.store}
+            defaultKeyword={keyword}
           />
         )}
         {tab === "schedule" && (

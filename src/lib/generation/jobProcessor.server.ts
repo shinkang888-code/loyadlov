@@ -4,10 +4,13 @@ import type { Database, Json } from "@/integrations/supabase/types";
 import { logActivity } from "@/lib/activity.server";
 import {
   buildImagePrompt,
+  generateBlogDraft,
   generateImageContent,
   generateTextContent,
   type TextGenParams,
 } from "@/lib/generation/aiCore.server";
+import { normalizeCampaignInput } from "@/lib/blog/campaignInput";
+import { buildTextMetrics } from "@/lib/blog/textMetrics";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -126,6 +129,45 @@ async function processTextJob(admin: AdminClient, job: GenerationJobRow): Promis
   await completeJob(admin, job, { ...text, draftId }, draftId);
 }
 
+async function processBlogDraftJob(admin: AdminClient, job: GenerationJobRow): Promise<void> {
+  const input = job.input as Record<string, unknown> & { writer?: string };
+  await updateJobProgress(admin, job.id, 10);
+
+  const campaign = normalizeCampaignInput(input);
+  const draft = await generateBlogDraft(campaign, { writer: input.writer });
+  await updateJobProgress(admin, job.id, 80);
+
+  // 네이버 블로그 채널은 sns_channel enum 의 'naver' 로 저장한다.
+  const body = `${draft.body}${draft.checklist.length ? `\n\n---\n반복 방지 키워드: ${draft.checklist.join(" / ")}` : ""}`;
+  const draftId = await createDraftFromGeneration(admin, job, {
+    body,
+    hashtags: campaign.keywords,
+    channel: "naver",
+    aiModel: draft.model,
+    title: draft.title.slice(0, 200),
+  });
+
+  const metrics = buildTextMetrics(draft.body, campaign);
+  await completeJob(
+    admin,
+    job,
+    {
+      title: draft.title,
+      body,
+      source: draft.source,
+      writer: input.writer ?? "기본 작가",
+      metrics: {
+        bodyCharsNoSpaces: metrics.bodyCharsNoSpaces,
+        bodyTarget: metrics.bodyTarget,
+        bodyPassed: metrics.bodyPassed,
+        keywordReport: metrics.keywordReport,
+      },
+      draftId,
+    },
+    draftId
+  );
+}
+
 async function processImageJob(admin: AdminClient, job: GenerationJobRow): Promise<void> {
   const input = job.input as {
     store: string;
@@ -139,7 +181,7 @@ async function processImageJob(admin: AdminClient, job: GenerationJobRow): Promi
   const image = await generateImageContent(prompt);
   await updateJobProgress(admin, job.id, 85);
 
-  let draftId = input.linkDraftId ?? null;
+  const draftId = input.linkDraftId ?? null;
   if (draftId) {
     const { data: draft } = await admin
       .from("content_drafts")
@@ -235,6 +277,8 @@ export async function processGenerationJob(
       await processImageJob(admin, job);
     } else if (job.job_type === "bulk_pack") {
       await processBulkPackJob(admin, job);
+    } else if (job.job_type === "blog_draft") {
+      await processBlogDraftJob(admin, job);
     } else {
       await failJob(admin, job, `Unknown job type: ${job.job_type}`);
     }
