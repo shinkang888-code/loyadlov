@@ -31,6 +31,9 @@ export type PlatformSecrets = {
   canvaApiKey?: string;
   // === Google Analytics (성과 리포트) ===
   gaPropertyId?: string;
+  // === 이메일 발송 (회원 관리 / Resend) ===
+  resendApiKey?: string;
+  emailFrom?: string;
 };
 
 export type PlatformSecretField = keyof PlatformSecrets;
@@ -109,6 +112,8 @@ export async function resolvePlatformSecret(field: PlatformSecretField): Promise
     figmaToken: "FIGMA_TOKEN",
     canvaApiKey: "CANVA_API_KEY",
     gaPropertyId: "GA_PROPERTY_ID",
+    resendApiKey: "RESEND_API_KEY",
+    emailFrom: "EMAIL_FROM",
   };
   const envKey = envMap[field];
   if (envKey) {
@@ -304,6 +309,14 @@ export async function resolveCanvaApiKey(): Promise<string | undefined> {
 export async function resolveGaPropertyId(): Promise<string | undefined> {
   const raw = await resolvePlatformSecret("gaPropertyId");
   return raw?.replace(/^properties\//, "").trim() || undefined;
+}
+
+export async function resolveEmailConfig(): Promise<{ apiKey?: string; from?: string }> {
+  const [apiKey, from] = await Promise.all([
+    resolvePlatformSecret("resendApiKey"),
+    resolvePlatformSecret("emailFrom"),
+  ]);
+  return { apiKey, from };
 }
 
 /** API 연동 패널용 상태 — 키가 입력되어 있는지(env/DB)만 판정 */

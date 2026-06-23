@@ -306,7 +306,11 @@ function AdminConsole() {
         ) : nav === "queue" ? (
           <QueuePanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
         ) : nav === "members" ? (
-          <MembersPanel storeCode={active.uid !== "—" ? active.uid : undefined} isAdmin={isAdmin} />
+          <MembersPanel
+            storeCode={active.uid !== "—" ? active.uid : undefined}
+            storeName={active.store}
+            isAdmin={isAdmin}
+          />
         ) : nav === "analytics" ? (
           <AnalyticsPanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
         ) : nav === "settings" ? (

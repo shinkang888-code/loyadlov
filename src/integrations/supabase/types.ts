@@ -197,6 +197,107 @@ export type Database = {
         }
         Relationships: []
       }
+      members: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          kakao_user_key: string | null
+          last_contact_at: string | null
+          memo: string | null
+          name: string
+          phone: string | null
+          role: string
+          status: string
+          store_code: string
+          tags: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          kakao_user_key?: string | null
+          last_contact_at?: string | null
+          memo?: string | null
+          name: string
+          phone?: string | null
+          role?: string
+          status?: string
+          store_code: string
+          tags?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          kakao_user_key?: string | null
+          last_contact_at?: string | null
+          memo?: string | null
+          name?: string
+          phone?: string | null
+          role?: string
+          status?: string
+          store_code?: string
+          tags?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      member_messages: {
+        Row: {
+          channel: string
+          content: string | null
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          member_id: string
+          meta: Json
+          status: string
+          store_code: string
+          subject: string | null
+        }
+        Insert: {
+          channel?: string
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          member_id: string
+          meta?: Json
+          status?: string
+          store_code: string
+          subject?: string | null
+        }
+        Update: {
+          channel?: string
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          member_id?: string
+          meta?: Json
+          status?: string
+          store_code?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_messages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kakao_channel_settings: {
         Row: {
           auto_reply: string | null

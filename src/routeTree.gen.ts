@@ -16,6 +16,7 @@ import { Route as ApiGenerateImageRouteImport } from './routes/api/generate-imag
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 import { Route as ApiKakaoWebhookRouteImport } from './routes/api/kakao/webhook'
+import { Route as ApiEmailInboundRouteImport } from './routes/api/email/inbound'
 import { Route as ApiCronSocialPublishRouteImport } from './routes/api/cron/social-publish'
 import { Route as ApiCronGenerationWorkerRouteImport } from './routes/api/cron/generation-worker'
 import { Route as ApiSocialYoutubeOauthStartRouteImport } from './routes/api/social/youtube/oauth/start'
@@ -61,6 +62,11 @@ const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
 const ApiKakaoWebhookRoute = ApiKakaoWebhookRouteImport.update({
   id: '/api/kakao/webhook',
   path: '/api/kakao/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEmailInboundRoute = ApiEmailInboundRouteImport.update({
+  id: '/api/email/inbound',
+  path: '/api/email/inbound',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronSocialPublishRoute = ApiCronSocialPublishRouteImport.update({
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/api/generate-image': typeof ApiGenerateImageRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/api/generate-image'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
+    | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
     | '/api/social/kakao/oauth/callback'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/api/generate-image'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
+    | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
     | '/api/social/kakao/oauth/callback'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/api/generate-image'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
+    | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
     | '/api/social/kakao/oauth/callback'
@@ -266,6 +278,7 @@ export interface RootRouteChildren {
   ApiGenerateImageRoute: typeof ApiGenerateImageRoute
   ApiCronGenerationWorkerRoute: typeof ApiCronGenerationWorkerRoute
   ApiCronSocialPublishRoute: typeof ApiCronSocialPublishRoute
+  ApiEmailInboundRoute: typeof ApiEmailInboundRoute
   ApiKakaoWebhookRoute: typeof ApiKakaoWebhookRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   ApiSocialKakaoOauthCallbackRoute: typeof ApiSocialKakaoOauthCallbackRoute
@@ -329,6 +342,13 @@ declare module '@tanstack/react-router' {
       path: '/api/kakao/webhook'
       fullPath: '/api/kakao/webhook'
       preLoaderRoute: typeof ApiKakaoWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/email/inbound': {
+      id: '/api/email/inbound'
+      path: '/api/email/inbound'
+      fullPath: '/api/email/inbound'
+      preLoaderRoute: typeof ApiEmailInboundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/social-publish': {
@@ -436,6 +456,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGenerateImageRoute: ApiGenerateImageRoute,
   ApiCronGenerationWorkerRoute: ApiCronGenerationWorkerRoute,
   ApiCronSocialPublishRoute: ApiCronSocialPublishRoute,
+  ApiEmailInboundRoute: ApiEmailInboundRoute,
   ApiKakaoWebhookRoute: ApiKakaoWebhookRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   ApiSocialKakaoOauthCallbackRoute: ApiSocialKakaoOauthCallbackRoute,

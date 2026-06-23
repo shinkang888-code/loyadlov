@@ -48,6 +48,8 @@ export function AIIntegrationsPanel({ embedded = false }: { embedded?: boolean }
   const [figmaToken, setFigmaToken] = useState("");
   const [canvaApiKey, setCanvaApiKey] = useState("");
   const [gaPropertyId, setGaPropertyId] = useState("");
+  const [resendApiKey, setResendApiKey] = useState("");
+  const [emailFrom, setEmailFrom] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -83,6 +85,8 @@ export function AIIntegrationsPanel({ embedded = false }: { embedded?: boolean }
           figmaToken: figmaToken.trim() || undefined,
           canvaApiKey: canvaApiKey.trim() || undefined,
           gaPropertyId: gaPropertyId.trim() || undefined,
+          resendApiKey: resendApiKey.trim() || undefined,
+          emailFrom: emailFrom.trim() || undefined,
         },
       });
       toast.success("API 키 저장 완료 — DB에 암호화 저장되어 환경변수처럼 동작합니다.");
@@ -94,6 +98,8 @@ export function AIIntegrationsPanel({ embedded = false }: { embedded?: boolean }
       setFigmaToken("");
       setCanvaApiKey("");
       setGaPropertyId("");
+      setResendApiKey("");
+      setEmailFrom("");
       await refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "저장 실패");
@@ -305,6 +311,34 @@ export function AIIntegrationsPanel({ embedded = false }: { embedded?: boolean }
           type="text"
           masked={masked.gaPropertyId}
           placeholder="123456789"
+        />
+      </section>
+
+      {/* 이메일 (Resend) */}
+      <section className="rounded-2xl bg-card border border-border p-5 space-y-3">
+        <h3 className="text-sm font-semibold">이메일 발송 (회원 관리 · Resend)</h3>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          회원에게 이메일을 보내려면 <strong>Resend</strong> API Key와 발신 주소가 필요합니다. 발신 도메인은
+          Resend에서 인증(SPF/DKIM)되어 있어야 합니다.
+        </p>
+        <SecretField
+          label="RESEND_API_KEY"
+          hint="resend.com → API Keys 에서 발급"
+          helpUrl="https://resend.com/api-keys"
+          value={resendApiKey}
+          onChange={setResendApiKey}
+          type="password"
+          masked={masked.resendApiKey}
+          placeholder="re_..."
+        />
+        <SecretField
+          label="EMAIL_FROM (발신 주소)"
+          hint="예: 상담센터 <hello@yourdomain.com>"
+          value={emailFrom}
+          onChange={setEmailFrom}
+          type="text"
+          masked={masked.emailFrom}
+          placeholder="브랜드명 <noreply@yourdomain.com>"
         />
       </section>
 

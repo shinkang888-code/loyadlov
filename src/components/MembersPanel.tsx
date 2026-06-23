@@ -3,10 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { assignMemberRoleFn, listMembersFn, type MemberRow } from "@/lib/profiles.functions";
-import { Loader2, RefreshCw, Users, Shield } from "lucide-react";
+import { Loader2, RefreshCw, Users, Shield, UserCog } from "lucide-react";
+import { MemberDirectoryPanel } from "@/components/MemberDirectoryPanel";
 
 type Props = {
   storeCode?: string;
+  storeName?: string;
   isAdmin?: boolean;
 };
 
@@ -16,7 +18,43 @@ const ROLE_LABEL: Record<string, string> = {
   admin: "관리자",
 };
 
-export function MembersPanel({ storeCode, isAdmin }: Props) {
+export function MembersPanel({ storeCode, storeName, isAdmin }: Props) {
+  const [view, setView] = useState<"members" | "team">("members");
+
+  return (
+    <div className="flex-1 flex flex-col min-w-0 bg-secondary/50">
+      <div className="px-6 pt-4 bg-card border-b border-border flex items-center gap-1">
+        <button
+          onClick={() => setView("members")}
+          className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition ${
+            view === "members"
+              ? "border-brand text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Users className="size-4" /> 회원
+        </button>
+        <button
+          onClick={() => setView("team")}
+          className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition ${
+            view === "team"
+              ? "border-brand text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <UserCog className="size-4" /> 팀 멤버
+        </button>
+      </div>
+      {view === "members" ? (
+        <MemberDirectoryPanel storeCode={storeCode} storeName={storeName} />
+      ) : (
+        <TeamMembersView storeCode={storeCode} isAdmin={isAdmin} />
+      )}
+    </div>
+  );
+}
+
+function TeamMembersView({ storeCode, isAdmin }: { storeCode?: string; isAdmin?: boolean }) {
   const listMembers = useServerFn(listMembersFn);
   const assignRole = useServerFn(assignMemberRoleFn);
   const [members, setMembers] = useState<MemberRow[]>([]);
