@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles, Store } from "lucide-react";
 import logo from "@/assets/loyard-logo.jpg";
+import { DEMO_EMAIL, DEMO_PROFILE } from "@/lib/demoAuth.constants";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -37,12 +38,34 @@ function AuthedLayout() {
     setLoading(true);
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
+
+    const isDemoUser =
+      u.user.email?.toLowerCase() === DEMO_EMAIL.toLowerCase() ||
+      u.user.user_metadata?.is_demo === true;
+
     const { data } = await supabase
       .from("profiles")
       .select("id, store_code, business_name, industry, instagram_handle, naver_handle, onboarded_at")
       .eq("id", u.user.id)
       .maybeSingle();
-    setProfile((data as Profile | null) ?? null);
+
+    let profile = (data as Profile | null) ?? null;
+
+    if (isDemoUser) {
+      setProfile({
+        id: u.user.id,
+        store_code: DEMO_PROFILE.store_code,
+        business_name: DEMO_PROFILE.business_name,
+        industry: DEMO_PROFILE.industry,
+        instagram_handle: DEMO_PROFILE.instagram_handle,
+        naver_handle: DEMO_PROFILE.naver_handle,
+        onboarded_at: profile?.onboarded_at ?? new Date().toISOString(),
+      });
+      setLoading(false);
+      return;
+    }
+
+    setProfile(profile);
     setLoading(false);
   };
 

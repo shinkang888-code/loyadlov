@@ -7,7 +7,11 @@ async function findDemoUserId(): Promise<string | null> {
     .select("id")
     .eq("email", DEMO_EMAIL)
     .maybeSingle();
-  return data?.id ?? null;
+  if (data?.id) return data.id;
+
+  const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const found = list.users.find((u) => u.email?.toLowerCase() === DEMO_EMAIL.toLowerCase());
+  return found?.id ?? null;
 }
 
 /** 데모 계정·프로필·owner 역할을 보장 (service role) */
@@ -30,27 +34,33 @@ export async function ensureDemoAccount(): Promise<void> {
       const found = list.users.find((u) => u.email?.toLowerCase() === DEMO_EMAIL.toLowerCase());
       if (!found) throw new Error(error.message);
       userId = found.id;
-      await supabaseAdmin.auth.admin.updateUserById(userId, { password: DEMO_PASSWORD });
     } else {
       userId = created.user!.id;
     }
-  } else {
-    await supabaseAdmin.auth.admin.updateUserById(userId, { password: DEMO_PASSWORD });
   }
 
-  const { error: profileErr } = await supabaseAdmin
-    .from("profiles")
-    .update({
-      email: DEMO_EMAIL,
+  await supabaseAdmin.auth.admin.updateUserById(userId, {
+    password: DEMO_PASSWORD,
+    user_metadata: {
       display_name: DEMO_PROFILE.display_name,
-      store_code: DEMO_PROFILE.store_code,
-      business_name: DEMO_PROFILE.business_name,
-      industry: DEMO_PROFILE.industry,
-      instagram_handle: DEMO_PROFILE.instagram_handle,
-      naver_handle: DEMO_PROFILE.naver_handle,
-      onboarded_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
+      is_demo: true,
+    },
+  });
+
+  // store_code 변경 트리거 회피: 데모 프로필은 삭제 후 재삽입
+  await supabaseAdmin.from("profiles").delete().eq("id", userId);
+
+  const { error: profileErr } = await supabaseAdmin.from("profiles").insert({
+    id: userId,
+    email: DEMO_EMAIL,
+    display_name: DEMO_PROFILE.display_name,
+    store_code: DEMO_PROFILE.store_code,
+    business_name: DEMO_PROFILE.business_name,
+    industry: DEMO_PROFILE.industry,
+    instagram_handle: DEMO_PROFILE.instagram_handle,
+    naver_handle: DEMO_PROFILE.naver_handle,
+    onboarded_at: new Date().toISOString(),
+  });
 
   if (profileErr) throw new Error(profileErr.message);
 

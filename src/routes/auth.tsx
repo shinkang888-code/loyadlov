@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Sparkles, ArrowLeft, Play } from "lucide-react";
 import logo from "@/assets/loyard-logo.jpg";
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_PROFILE } from "@/lib/demoAuth.constants";
+import { demoLoginFn } from "@/lib/demoAuth.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -64,6 +65,28 @@ function AuthPage() {
     setErr(null);
     setLoading(true);
     try {
+      // 1) 서버에서 데모 계정·프로필 보장 후 매직링크 토큰 발급 (service role)
+      try {
+        const { email, tokenHash } = await demoLoginFn({ data: {} });
+        const { error: otpErr } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "email",
+        });
+        if (otpErr) {
+          const retry = await supabase.auth.verifyOtp({
+            email,
+            token_hash: tokenHash,
+            type: "magiclink",
+          });
+          if (retry.error) throw retry.error;
+        }
+        navigate({ to: "/admin" });
+        return;
+      } catch (serverErr) {
+        console.warn("[demo login] server path failed, trying client fallback:", serverErr);
+      }
+
+      // 2) 폴백: 클라이언트 비밀번호 로그인 (service role 미설정 환경)
       let { error } = await supabase.auth.signInWithPassword({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
@@ -77,7 +100,9 @@ function AuthPage() {
             data: { ...DEMO_PROFILE, is_demo: true },
           },
         });
-        if (signUpErr) throw signUpErr;
+        if (signUpErr && !/already registered|already been registered/i.test(signUpErr.message)) {
+          throw signUpErr;
+        }
 
         const retry = await supabase.auth.signInWithPassword({
           email: DEMO_EMAIL,
@@ -89,6 +114,7 @@ function AuthPage() {
       navigate({ to: "/admin" });
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "데모 로그인에 실패했습니다.");
+    } finally {
       setLoading(false);
     }
   };

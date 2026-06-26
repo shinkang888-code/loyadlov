@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { logActivity } from "@/lib/activity.server";
 import { isUserAdmin, resolveRequestedStoreCode } from "@/lib/storeContext.server";
+import { DEMO_EMAIL, DEMO_PROFILE } from "@/lib/demoAuth.constants";
 
 export type StoreSummary = {
   storeCode: string;
@@ -137,11 +138,43 @@ export const listStoresFn = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<{ stores: StoreSummary[]; isAdmin: boolean }> => {
     const { supabase, userId } = context;
     const admin = await isUserAdmin(supabase, userId);
+
     const { data: ownProfile } = await supabase
       .from("profiles")
-      .select("store_code")
+      .select("store_code, email")
       .eq("id", userId)
       .maybeSingle();
+
+    const claimsEmail =
+      typeof context.claims?.email === "string" ? context.claims.email : undefined;
+    const isDemoUser =
+      ownProfile?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase() ||
+      claimsEmail?.toLowerCase() === DEMO_EMAIL.toLowerCase();
+
+    if (isDemoUser) {
+      return {
+        stores: [
+          {
+            storeCode: DEMO_PROFILE.store_code,
+            businessName: DEMO_PROFILE.business_name,
+            industry: DEMO_PROFILE.industry,
+            displayName: DEMO_PROFILE.display_name,
+            instagramHandle: DEMO_PROFILE.instagram_handle,
+            naverHandle: DEMO_PROFILE.naver_handle,
+            toneTags: ["감성적", "신뢰감"],
+            onboardedAt: new Date().toISOString(),
+            memberCount: 1,
+            publishedThisMonth: 0,
+            queuedCount: 0,
+            connectedPlatforms: [],
+            status: "active",
+            plan: "Demo",
+          },
+        ],
+        isAdmin: admin,
+      };
+    }
+
     const ownStore = ownProfile?.store_code?.trim();
 
     let profileQuery = supabase

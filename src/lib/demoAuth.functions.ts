@@ -16,5 +16,5 @@ export const demoLoginFn = createServerFn({ method: "POST" }).handler(async () =
     throw new Error(error?.message ?? "데모 세션을 만들 수 없습니다.");
   }
 
-  return { tokenHash };
+  return { email: DEMO_EMAIL, tokenHash };
 });
