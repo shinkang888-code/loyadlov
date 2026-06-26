@@ -314,7 +314,11 @@ function AdminConsole() {
             isAdmin={isAdmin}
           />
         ) : nav === "threadbot" ? (
-          <ThreadbotPanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
+          <ThreadbotPanel
+            storeCode={active.uid !== "—" ? active.uid : undefined}
+            storeName={active.store}
+            onRequestOAuth={() => setOauthDialogOpen(true)}
+          />
         ) : nav === "analytics" ? (
           <AnalyticsPanel storeCode={active.uid !== "—" ? active.uid : undefined} storeName={active.store} />
         ) : nav === "settings" ? (

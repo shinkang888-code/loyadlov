@@ -30,9 +30,12 @@ import {
   getThreadbotSummaryFn,
   runThreadbotOnceFn,
   generateThreadReplyFn,
+  listThreadbotAccountsFn,
+  logThreadbotActivityFn,
   type ThreadbotRules,
   type ThreadbotActivity,
   type ThreadbotSummary,
+  type ThreadbotAccount,
 } from "@/lib/threadbot.functions";
 import {
   isDemoStore,
@@ -42,11 +45,14 @@ import {
   demoThreadbotFeed,
   demoThreadbotAccounts,
   type DemoFeedPost,
-  type DemoThreadAccount,
 } from "@/lib/demoData";
 import { useThreadbotActivityRealtime } from "@/hooks/useThreadbotActivityRealtime";
 
-type Props = { storeCode?: string; storeName?: string };
+type Props = {
+  storeCode?: string;
+  storeName?: string;
+  onRequestOAuth?: () => void;
+};
 type Tab = "home" | "feed" | "activity" | "rules";
 
 const inputCls =
@@ -78,7 +84,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}일 전`;
 }
 
-export function ThreadbotPanel({ storeCode, storeName }: Props) {
+export function ThreadbotPanel({ storeCode, storeName, onRequestOAuth }: Props) {
   const demo = isDemoStore(storeCode);
   const [tab, setTab] = useState<Tab>("home");
   const [rules, setRules] = useState<ThreadbotRules | null>(null);
@@ -163,6 +169,65 @@ export function ThreadbotPanel({ storeCode, storeName }: Props) {
     }
   };
 
+  const refreshSummary = useCallback(async () => {
+    if (demo || !storeCode) return;
+    try {
+      const s = await getThreadbotSummaryFn({ data: { storeCode } });
+      setSummary(s.summary);
+    } catch {
+      /* ignore */
+    }
+  }, [demo, storeCode]);
+
+  const logActivity = useCallback(
+    async (input: {
+      platform: DemoFeedPost["platform"];
+      action: ThreadbotActivity["action"];
+      post: DemoFeedPost;
+      replyText?: string;
+      aiReason?: string;
+    }) => {
+      if (demo) {
+        toast.success(
+          input.action === "like"
+            ? "공감 완료 (데모)"
+            : input.action === "reply"
+              ? "댓글 게시 완료 (데모)"
+              : "스킵 처리 (데모)"
+        );
+        return;
+      }
+      try {
+        await logThreadbotActivityFn({
+          data: {
+            storeCode,
+            platform: input.platform,
+            action: input.action,
+            targetUsername: input.post.username,
+            postId: input.post.id,
+            postPreview: input.post.text.slice(0, 200),
+            replyText: input.replyText ?? null,
+            aiReason: input.aiReason ?? null,
+          },
+        });
+        await refreshSummary();
+        toast.success(
+          input.action === "like"
+            ? "공감 기록됨"
+            : input.action === "reply"
+              ? "댓글 게시 기록됨"
+              : "스킵 기록됨",
+          { description: rules?.dryRun ? "DRY RUN 모드 — 실제 게시는 하지 않습니다." : undefined }
+        );
+      } catch (e) {
+        toast.error("활동 기록 실패", {
+          description: e instanceof Error ? e.message : undefined,
+        });
+      }
+    },
+    [demo, storeCode, rules?.dryRun, refreshSummary]
+  );
+
   if (loading && !rules) {
     return (
       <div className="flex-1 grid place-items-center bg-secondary/50">
@@ -244,9 +309,19 @@ export function ThreadbotPanel({ storeCode, storeName }: Props) {
             rules={rules}
             onRefresh={() => void load()}
             loading={loading}
+            demo={demo}
+            storeCode={storeCode}
+            onRequestOAuth={onRequestOAuth}
           />
         )}
-        {tab === "feed" && <FeedView demo={demo} storeCode={storeCode} rules={rules} />}
+        {tab === "feed" && (
+          <FeedView
+            demo={demo}
+            storeCode={storeCode}
+            rules={rules}
+            onLogActivity={logActivity}
+          />
+        )}
         {tab === "activity" && <ActivityView activity={activity} onRefresh={() => void load()} />}
         {tab === "rules" && rules && (
           <RulesView
@@ -312,12 +387,18 @@ function HomeView({
   rules,
   onRefresh,
   loading,
+  demo,
+  storeCode,
+  onRequestOAuth,
 }: {
   summary: ThreadbotSummary;
   activity: ThreadbotActivity[];
   rules: ThreadbotRules | null;
   onRefresh: () => void;
   loading: boolean;
+  demo: boolean;
+  storeCode?: string;
+  onRequestOAuth?: () => void;
 }) {
   const kpis = [
     { label: "오늘 공감", value: summary.likes, Icon: Heart, cls: "text-rose-500" },
@@ -390,7 +471,7 @@ function HomeView({
 
         {/* 계정 + 요약 */}
         <div className="grid gap-6 content-start">
-          <AccountsCard />
+          <AccountsCard demo={demo} storeCode={storeCode} onRequestOAuth={onRequestOAuth} />
           {rules && (
             <div className="bg-card border border-border rounded-2xl p-5 shadow-soft">
               <h3 className="font-display font-semibold mb-3">현재 규칙 요약</h3>
@@ -420,45 +501,94 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 
-function AccountsCard() {
-  const accounts: DemoThreadAccount[] = demoThreadbotAccounts();
+function AccountsCard({
+  demo,
+  storeCode,
+  onRequestOAuth,
+}: {
+  demo: boolean;
+  storeCode?: string;
+  onRequestOAuth?: () => void;
+}) {
+  const [accounts, setAccounts] = useState<ThreadbotAccount[]>(() =>
+    demo ? demoThreadbotAccounts() : []
+  );
+  const [loading, setLoading] = useState(!demo);
+
+  useEffect(() => {
+    if (demo) {
+      setAccounts(demoThreadbotAccounts());
+      setLoading(false);
+      return;
+    }
+    if (!storeCode) return;
+    let cancelled = false;
+    setLoading(true);
+    void listThreadbotAccountsFn({ data: { storeCode } })
+      .then((res) => {
+        if (!cancelled) setAccounts(res.accounts);
+      })
+      .catch(() => {
+        if (!cancelled) setAccounts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [demo, storeCode]);
+
   return (
     <div className="bg-card border border-border rounded-2xl p-5 shadow-soft">
       <h3 className="font-display font-semibold mb-3">연동 계정</h3>
-      <div className="space-y-3">
-        {accounts.map((acc) => (
-          <div key={acc.platform} className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              {acc.platform === "threads" ? (
-                <AtSign className="size-4 text-foreground" />
-              ) : (
-                <Instagram className="size-4 text-pink-500" />
-              )}
-              <div className="min-w-0">
-                <div className="text-sm font-medium capitalize">{acc.platform}</div>
-                <div className="text-[11px] text-muted-foreground truncate">
-                  {acc.username ?? "미연결"}
+      {loading ? (
+        <div className="py-6 grid place-items-center text-muted-foreground">
+          <Loader2 className="size-5 animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {accounts.map((acc) => (
+            <div key={acc.platform} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                {acc.platform === "threads" ? (
+                  <AtSign className="size-4 text-foreground" />
+                ) : (
+                  <Instagram className="size-4 text-pink-500" />
+                )}
+                <div className="min-w-0">
+                  <div className="text-sm font-medium capitalize">{acc.platform}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {acc.username ?? "미연결"}
+                  </div>
                 </div>
               </div>
+              {acc.status === "connected" ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-emerald-500/15 text-emerald-600">
+                  <CheckCircle2 className="size-3" /> 연결됨
+                  {acc.expiresInDays != null && ` · ${acc.expiresInDays}일`}
+                </span>
+              ) : acc.status === "expired" ? (
+                <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-600">
+                  토큰 만료
+                </span>
+              ) : acc.status === "needs_business" ? (
+                <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-600">
+                  Business 전환 필요
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-muted text-muted-foreground">
+                  미연결
+                </span>
+              )}
             </div>
-            {acc.status === "connected" ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-emerald-500/15 text-emerald-600">
-                <CheckCircle2 className="size-3" /> 연결됨
-                {acc.expiresInDays != null && ` · ${acc.expiresInDays}일`}
-              </span>
-            ) : acc.status === "needs_business" ? (
-              <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-600">
-                Business 전환 필요
-              </span>
-            ) : (
-              <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-muted text-muted-foreground">
-                미연결
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-      <button className="mt-4 w-full h-9 rounded-xl border border-border text-xs font-medium hover:bg-secondary transition">
+          ))}
+        </div>
+      )}
+      <button
+        onClick={() => onRequestOAuth?.()}
+        className="mt-4 w-full h-9 rounded-xl border border-border text-xs font-medium hover:bg-secondary transition"
+      >
         Meta 계정 연결 관리
       </button>
     </div>
@@ -470,10 +600,18 @@ function FeedView({
   demo,
   storeCode,
   rules,
+  onLogActivity,
 }: {
   demo: boolean;
   storeCode?: string;
   rules: ThreadbotRules | null;
+  onLogActivity: (input: {
+    platform: DemoFeedPost["platform"];
+    action: ThreadbotActivity["action"];
+    post: DemoFeedPost;
+    replyText?: string;
+    aiReason?: string;
+  }) => Promise<void>;
 }) {
   const [posts] = useState<DemoFeedPost[]>(() => demoThreadbotFeed());
   const [filter, setFilter] = useState<"all" | "threads" | "instagram">("all");
@@ -514,6 +652,12 @@ function FeedView({
 
   return (
     <div className="grid gap-4">
+      {!demo && (
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+          피드 미리보기는 샘플 데이터입니다. Meta API 워커 연동 후 실제 피드가 표시됩니다. 공감·댓글·스킵은
+          활동 로그에 기록됩니다{rules?.dryRun ? " (DRY RUN)" : ""}.
+        </div>
+      )}
       <div className="flex items-center gap-2">
         {(["all", "threads", "instagram"] as const).map((f) => (
           <button
@@ -570,7 +714,10 @@ function FeedView({
                   <span className="text-muted-foreground/60">{p.planReason}</span>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  <button className="inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-border text-xs hover:bg-secondary transition">
+                  <button
+                    onClick={() => void onLogActivity({ platform: p.platform, action: "like", post: p })}
+                    className="inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-border text-xs hover:bg-secondary transition"
+                  >
                     <Heart className="size-3.5" /> 공감
                   </button>
                   <button
@@ -579,7 +726,10 @@ function FeedView({
                   >
                     <Sparkles className="size-3.5" /> AI 댓글
                   </button>
-                  <button className="inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-border text-xs hover:bg-secondary transition">
+                  <button
+                    onClick={() => void onLogActivity({ platform: p.platform, action: "skip", post: p, aiReason: p.planReason })}
+                    className="inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-border text-xs hover:bg-secondary transition"
+                  >
                     <SkipForward className="size-3.5" /> 스킵
                   </button>
                 </div>
@@ -630,7 +780,13 @@ function FeedView({
               </button>
               <button
                 onClick={() => {
-                  toast.success("댓글 게시 완료", { description: "활동 로그에 기록됩니다." });
+                  void onLogActivity({
+                    platform: replyFor.platform,
+                    action: "reply",
+                    post: replyFor,
+                    replyText: reply,
+                    aiReason: "수동 검토 후 게시",
+                  });
                   setReplyFor(null);
                 }}
                 disabled={genLoading || !reply.trim()}

@@ -249,6 +249,51 @@ export type ThreadbotSummary = {
   errors: number;
 };
 
+export type ThreadbotAccount = {
+  platform: "threads" | "instagram";
+  username: string | null;
+  status: "connected" | "expired" | "disconnected" | "needs_business";
+  expiresInDays: number | null;
+};
+
+function expiresInDays(iso: string | null): number | null {
+  if (!iso) return null;
+  const diff = new Date(iso).getTime() - Date.now();
+  return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
+}
+
+function deriveAccountStatus(
+  platform: "threads" | "instagram",
+  social: { display_name: string; token_expires_at: string | null; metadata: unknown } | undefined,
+  meta: Record<string, unknown>
+): ThreadbotAccount["status"] {
+  if (!social) return "disconnected";
+  if (platform === "instagram" && !meta.instagramBusinessAccountId) return "needs_business";
+  if (platform === "threads" && !meta.threadsUserId) return "disconnected";
+  if (social.token_expires_at && new Date(social.token_expires_at).getTime() < Date.now()) {
+    return "expired";
+  }
+  return "connected";
+}
+
+function mapThreadbotAccount(
+  platform: "threads" | "instagram",
+  social: { display_name: string; platform_user_id: string; token_expires_at: string | null; metadata: unknown } | undefined,
+  meta: Record<string, unknown>
+): ThreadbotAccount {
+  const status = deriveAccountStatus(platform, social, meta);
+  const username =
+    platform === "threads"
+      ? social?.display_name ?? (meta.threadsUsername ? `@${meta.threadsUsername}` : null)
+      : social?.display_name ?? null;
+  return {
+    platform,
+    username: status === "disconnected" ? null : username,
+    status,
+    expiresInDays: status === "connected" ? expiresInDays(social?.token_expires_at ?? null) : null,
+  };
+}
+
 export const getThreadbotSummaryFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => StoreInput.parse(input))
@@ -273,6 +318,101 @@ export const getThreadbotSummaryFn = createServerFn({ method: "POST" })
       else if (a === "error") summary.errors++;
     }
     return { summary };
+  });
+
+// ── 연동 계정 (social_accounts → threadbot_accounts 동기화) ──
+export const listThreadbotAccountsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => StoreInput.parse(input))
+  .handler(async ({ data, context }): Promise<{ accounts: ThreadbotAccount[] }> => {
+    const { supabase, userId } = context;
+    const storeCode = await resolveRequestedStoreCode(supabase, userId, data.storeCode);
+
+    const { data: socialRows } = await supabase
+      .from("social_accounts")
+      .select("platform, display_name, platform_user_id, token_expires_at, metadata")
+      .eq("store_code", storeCode)
+      .in("platform", ["threads", "instagram"]);
+
+    const threadsSocial = socialRows?.find((r) => r.platform === "threads");
+    const instagramSocial = socialRows?.find((r) => r.platform === "instagram");
+    const sharedMeta =
+      (threadsSocial?.metadata as Record<string, unknown> | null) ??
+      (instagramSocial?.metadata as Record<string, unknown> | null) ??
+      {};
+
+    const accounts: ThreadbotAccount[] = [
+      mapThreadbotAccount("threads", threadsSocial, sharedMeta),
+      mapThreadbotAccount("instagram", instagramSocial, sharedMeta),
+    ];
+
+    const now = new Date().toISOString();
+    for (const acc of accounts) {
+      const social = acc.platform === "threads" ? threadsSocial : instagramSocial;
+      const upsert: Database["public"]["Tables"]["threadbot_accounts"]["Insert"] = {
+        store_code: storeCode,
+        platform: acc.platform,
+        username: acc.username,
+        external_user_id: social?.platform_user_id ?? null,
+        status: acc.status,
+        expires_at: social?.token_expires_at ?? null,
+        connected_at: acc.status === "connected" ? now : null,
+        updated_at: now,
+      };
+      await supabase.from("threadbot_accounts").upsert(upsert, { onConflict: "store_code,platform" });
+    }
+
+    return { accounts };
+  });
+
+// ── 수동 활동 로그 기록 (피드 공감/댓글/스킵) ───────────
+const LogActivityInput = z.object({
+  storeCode: z.string().trim().optional(),
+  platform: z.enum(["threads", "instagram"]),
+  action: z.enum(["like", "reply", "skip", "error"]),
+  targetUsername: z.string().optional().nullable(),
+  postId: z.string().optional().nullable(),
+  postPreview: z.string().optional().nullable(),
+  replyText: z.string().optional().nullable(),
+  aiReason: z.string().optional().nullable(),
+  status: z.enum(["success", "failed", "dry_run"]).optional(),
+});
+
+export const logThreadbotActivityFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => LogActivityInput.parse(input))
+  .handler(async ({ data, context }): Promise<{ activity: ThreadbotActivity }> => {
+    const { supabase, userId } = context;
+    const storeCode = await resolveRequestedStoreCode(supabase, userId, data.storeCode);
+
+    const { data: rulesRow } = await supabase
+      .from("threadbot_rules")
+      .select("dry_run")
+      .eq("store_code", storeCode)
+      .maybeSingle();
+
+    const status =
+      data.status ?? (rulesRow?.dry_run ? "dry_run" : "success");
+
+    const insert: Database["public"]["Tables"]["threadbot_activity_logs"]["Insert"] = {
+      store_code: storeCode,
+      platform: data.platform,
+      action: data.action,
+      target_username: data.targetUsername ?? null,
+      post_id: data.postId ?? null,
+      post_preview: data.postPreview ?? null,
+      reply_text: data.replyText ?? null,
+      ai_reason: data.aiReason ?? null,
+      status,
+    };
+
+    const { data: row, error } = await supabase
+      .from("threadbot_activity_logs")
+      .insert(insert)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return { activity: mapActivity(row as ActivityRow) };
   });
 
 // ── AI 댓글 생성 (Gemini 실연동) ────────────────────────
