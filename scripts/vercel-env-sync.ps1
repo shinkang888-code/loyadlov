@@ -42,7 +42,7 @@ foreach ($key in $keys) {
     continue
   }
   Write-Host "  add $key"
-  $val | vercel env add $key production --scope $Scope --force 2>&1 | Out-Null
+  vercel env add $key production --scope $Scope --value $val --yes --force 2>&1 | Out-Null
 }
 
 Write-Host "완료. SERVICE_ROLE_KEY는 Dashboard에서 수동 추가 후 재배포하세요." -ForegroundColor Green
