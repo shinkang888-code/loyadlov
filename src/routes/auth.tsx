@@ -65,34 +65,18 @@ function AuthPage() {
     setErr(null);
     setLoading(true);
     try {
-      // 1) 서버에서 데모 계정·프로필 보장 후 매직링크 토큰 발급 (service role)
-      try {
-        const { email, tokenHash } = await demoLoginFn({ data: {} });
-        const { error: otpErr } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: "email",
-        });
-        if (otpErr) {
-          const retry = await supabase.auth.verifyOtp({
-            email,
-            token_hash: tokenHash,
-            type: "magiclink",
-          });
-          if (retry.error) throw retry.error;
-        }
-        navigate({ to: "/admin" });
-        return;
-      } catch (serverErr) {
-        console.warn("[demo login] server path failed, trying client fallback:", serverErr);
-      }
-
-      // 2) 폴백: 클라이언트 비밀번호 로그인 (service role 미설정 환경)
-      let { error } = await supabase.auth.signInWithPassword({
+      // 1) 클라이언트 비밀번호 로그인 (가장 빠름, service role 불필요)
+      const first = await supabase.auth.signInWithPassword({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
       });
+      if (!first.error) {
+        navigate({ to: "/admin" });
+        return;
+      }
 
-      if (error) {
+      // 2) 계정 없으면 가입 후 재시도
+      if (/invalid login credentials|invalid credential/i.test(first.error.message)) {
         const { error: signUpErr } = await supabase.auth.signUp({
           email: DEMO_EMAIL,
           password: DEMO_PASSWORD,
@@ -103,17 +87,44 @@ function AuthPage() {
         if (signUpErr && !/already registered|already been registered/i.test(signUpErr.message)) {
           throw signUpErr;
         }
-
         const retry = await supabase.auth.signInWithPassword({
           email: DEMO_EMAIL,
           password: DEMO_PASSWORD,
         });
-        if (retry.error) throw retry.error;
+        if (!retry.error) {
+          navigate({ to: "/admin" });
+          return;
+        }
       }
 
+      // 3) 서버에서 데모 계정·비밀번호 재설정 + 매직링크 (service role 필요)
+      const serverLogin = Promise.race([
+        demoLoginFn({ data: {} }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("데모 서버 응답 시간 초과")), 12000)
+        ),
+      ]);
+      const { email, tokenHash } = await serverLogin;
+      const { error: otpErr } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "email",
+      });
+      if (otpErr) {
+        const retryOtp = await supabase.auth.verifyOtp({
+          email,
+          token_hash: tokenHash,
+          type: "magiclink",
+        });
+        if (retryOtp.error) throw retryOtp.error;
+      }
       navigate({ to: "/admin" });
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : "데모 로그인에 실패했습니다.");
+      const msg = e2 instanceof Error ? e2.message : "데모 로그인에 실패했습니다.";
+      setErr(
+        msg.includes("Missing Supabase") || msg.includes("SERVICE_ROLE")
+          ? "데모 로그인 설정이 아직 완료되지 않았습니다. Vercel에 SUPABASE_SERVICE_ROLE_KEY를 추가해 주세요."
+          : msg
+      );
     } finally {
       setLoading(false);
     }
@@ -163,6 +174,12 @@ function AuthPage() {
           </div>
 
           <div className="glass rounded-2xl p-6 sm:p-8 shadow-soft border border-border/60">
+            {err && (
+              <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2 mb-4">
+                {err}
+              </p>
+            )}
+
             <Button
               type="button"
               variant="secondary"
@@ -170,8 +187,14 @@ function AuthPage() {
               disabled={loading}
               onClick={() => void handleDemo()}
             >
-              <Play className="size-4 mr-2" />
-              데모로 둘러보기
+              {loading ? (
+                <>접속 중...</>
+              ) : (
+                <>
+                  <Play className="size-4 mr-2" />
+                  데모로 둘러보기
+                </>
+              )}
             </Button>
             <p className="text-[11px] text-center text-muted-foreground mb-5">
               Google 연동 없이 바로 대시보드를 체험합니다
@@ -226,11 +249,6 @@ function AuthPage() {
                 />
               </div>
 
-              {err && (
-                <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">
-                  {err}
-                </p>
-              )}
 
               <Button type="submit" disabled={loading} className="w-full h-11">
                 <Sparkles className="size-4 mr-1.5" />
