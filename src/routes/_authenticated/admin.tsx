@@ -50,6 +50,7 @@ import showcase2 from "@/assets/showcase-2.jpg";
 import showcase3 from "@/assets/showcase-3.jpg";
 import { LeadsPanel } from "@/components/LeadsPanel";
 import { AssetsPanel } from "@/components/AssetsPanel";
+import { ReelsAutoPanel } from "@/components/ReelsAutoPanel";
 import { SocialPublishPanel } from "@/components/SocialPublishPanel";
 import { PlatformSetupWizard } from "@/components/PlatformSetupWizard";
 import { SetupBanner } from "@/components/SetupBanner";
@@ -201,6 +202,7 @@ function AdminConsole() {
           | "channels"
           | "leads"
           | "assets"
+          | "reels"
           | "members"
           | "threadbot"
           | "analytics"
@@ -208,8 +210,8 @@ function AdminConsole() {
           | null)
       : null;
   const [nav, setNav] = useState<
-    "workspace" | "queue" | "channels" | "leads" | "assets" | "members" | "threadbot" | "analytics" | "settings"
-  >(initialTab && ["workspace", "queue", "channels", "leads", "assets", "members", "threadbot", "analytics", "settings"].includes(initialTab) ? initialTab : "workspace");
+    "workspace" | "queue" | "channels" | "leads" | "assets" | "reels" | "members" | "threadbot" | "analytics" | "settings"
+  >(initialTab && ["workspace", "queue", "channels", "leads", "assets", "reels", "members", "threadbot", "analytics", "settings"].includes(initialTab) ? initialTab : "workspace");
 
   const [workspaceReset, setWorkspaceReset] = useState(0);
 
@@ -298,6 +300,9 @@ function AdminConsole() {
           />
         ) : nav === "assets" ? (
           <AssetsPanel storeCode={active.uid !== "—" ? active.uid : undefined} />
+        ) : nav === "reels" ? (
+          <ReelsAutoPanel storeCode={active.uid !== "—" ? active.uid : undefined} />
+
         ) : nav === "channels" ? (
           <SocialPublishPanel
             storeCode={active.uid !== "—" ? active.uid : undefined}
@@ -388,6 +393,7 @@ function SideNav({
   const items = [
     { id: "workspace", label: "워크스페이스", Icon: LayoutDashboard },
     { id: "queue", label: "생성 큐", Icon: Layers, badge: queueBadge > 0 ? queueBadge : undefined },
+    { id: "reels", label: "릴스 자동생성", Icon: Film },
     { id: "channels", label: "채널 세션", Icon: ShieldCheck },
     { id: "assets", label: "소재함", Icon: FolderOpen },
     { id: "leads", label: "상담 리드", Icon: Bell },
