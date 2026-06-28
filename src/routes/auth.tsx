@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { getAuthCallbackUrl } from "@/integrations/neon/auth-config";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sparkles, ArrowLeft, Play } from "lucide-react";
 import logo from "@/assets/loyard-logo.jpg";
-import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_PROFILE } from "@/lib/demoAuth.constants";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/demoAuth.constants";
 import { demoLoginFn } from "@/lib/demoAuth.functions";
 
 export const Route = createFileRoute("/auth")({
@@ -47,7 +48,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/admin` },
+          options: { emailRedirectTo: getAuthCallbackUrl("/admin") },
         });
         if (error) throw error;
       } else {
@@ -65,45 +66,15 @@ function AuthPage() {
     setErr(null);
     setLoading(true);
     try {
-      // 1) 클라이언트 비밀번호 로그인 (가장 빠름, service role 불필요)
-      const first = await supabase.auth.signInWithPassword({
-        email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-      });
-      if (!first.error) {
-        navigate({ to: "/admin" });
-        return;
-      }
-
-      // 2) 계정 없으면 가입 후 재시도
-      if (/invalid login credentials|invalid credential/i.test(first.error.message)) {
-        const { error: signUpErr } = await supabase.auth.signUp({
-          email: DEMO_EMAIL,
-          password: DEMO_PASSWORD,
-          options: {
-            data: { ...DEMO_PROFILE, is_demo: true },
-          },
-        });
-        if (signUpErr && !/already registered|already been registered/i.test(signUpErr.message)) {
-          throw signUpErr;
-        }
-        const retry = await supabase.auth.signInWithPassword({
-          email: DEMO_EMAIL,
-          password: DEMO_PASSWORD,
-        });
-        if (!retry.error) {
-          navigate({ to: "/admin" });
-          return;
-        }
-      }
-
-      // 3) 서버에서 데모 프로필 보장 후 재시도
+      // 1) 서버에서 데모 계정·프로필 보장 (Origin 헤더 포함)
       await demoLoginFn({ data: {} });
-      const retry = await supabase.auth.signInWithPassword({
+
+      // 2) 클라이언트 로그인
+      const signIn = await supabase.auth.signInWithPassword({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
       });
-      if (retry.error) throw retry.error;
+      if (signIn.error) throw signIn.error;
       navigate({ to: "/admin" });
     } catch (e2) {
       const msg = e2 instanceof Error ? e2.message : "데모 로그인에 실패했습니다.";
@@ -122,7 +93,7 @@ function AuthPage() {
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/admin",
+        redirect_uri: getAuthCallbackUrl("/admin"),
       });
       if (result.error) {
         setErr(result.error instanceof Error ? result.error.message : "Google 로그인 실패");

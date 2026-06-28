@@ -34,4 +34,4 @@ export const supabase = {
   },
 };
 
-export { getNeonAuthUrl, NEON_AUTH_JWKS_URL } from "@/integrations/neon/auth-config";
+export { getNeonAuthUrl, getAppOrigin, getAuthCallbackUrl, NEON_AUTH_JWKS_URL } from "@/integrations/neon/auth-config";

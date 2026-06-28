@@ -1,6 +1,6 @@
 import { getNeonDb } from "@/integrations/neon/supabase-compat.server";
-import { createAuthClient } from "@neondatabase/auth";
-import { SupabaseAuthAdapter } from "@neondatabase/auth/vanilla/adapters";
+import { createServerNeonAuth } from "@/integrations/neon/auth-server";
+import { getAuthCallbackUrl } from "@/integrations/neon/auth-config";
 import { DEMO_EMAIL, DEMO_PROFILE, DEMO_PASSWORD } from "@/lib/demoAuth.constants";
 
 async function findDemoUserId(): Promise<string | null> {
@@ -10,15 +10,9 @@ async function findDemoUserId(): Promise<string | null> {
   return row?.id ?? null;
 }
 
-function getServerNeonAuth() {
-  const url = process.env.NEON_AUTH_URL?.trim() || process.env.VITE_NEON_AUTH_URL?.trim();
-  if (!url) throw new Error("Missing NEON_AUTH_URL");
-  return createAuthClient(url.replace(/\/$/, ""), { adapter: SupabaseAuthAdapter() });
-}
-
 /** 데모 계정·프로필·owner 역할 보장 (Neon Auth + Postgres) */
 export async function ensureDemoAccount(): Promise<void> {
-  const auth = getServerNeonAuth();
+  const auth = createServerNeonAuth();
   const db = getNeonDb();
 
   let signIn = await auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
@@ -27,6 +21,7 @@ export async function ensureDemoAccount(): Promise<void> {
       email: DEMO_EMAIL,
       password: DEMO_PASSWORD,
       options: {
+        emailRedirectTo: getAuthCallbackUrl("/admin"),
         data: { ...DEMO_PROFILE, is_demo: true },
       },
     });
