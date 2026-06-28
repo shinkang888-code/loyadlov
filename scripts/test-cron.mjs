@@ -18,7 +18,11 @@ for (const f of [".env.vercel", ".env"]) {
 }
 
 const secret = process.env.CRON_SECRET?.trim();
-const base = process.env.APP_URL?.trim() || "https://loyadlov.vercel.app";
+const appUrl = process.env.APP_URL?.trim()?.replace(/\/$/, "");
+const base =
+  process.env.CRON_TEST_BASE?.trim()?.replace(/\/$/, "") ||
+  (appUrl && !/localhost|127\.0\.0\.1/.test(appUrl) ? appUrl : null) ||
+  "https://loyadlov.vercel.app";
 
 if (!secret) {
   console.error("CRON_SECRET missing — vercel env pull .env.vercel");

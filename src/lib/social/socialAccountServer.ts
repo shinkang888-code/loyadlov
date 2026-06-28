@@ -148,11 +148,13 @@ export async function updateSocialAccountTokens(
 
 export async function listAccountsNeedingTokenRefresh(): Promise<SocialAccountRow[]> {
   const threshold = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data } = await supabaseAdmin
-    .from("social_accounts")
-    .select("*")
-    .or(`token_expires_at.is.null,token_expires_at.lt."${threshold}"`);
-  return (data ?? []) as SocialAccountRow[];
+  const { getSql } = await import("@/integrations/neon/db.server");
+  const sql = getSql();
+  const rows = await sql`
+    SELECT * FROM public.social_accounts
+    WHERE token_expires_at IS NULL OR token_expires_at < ${threshold}::timestamptz
+  `;
+  return (rows ?? []) as SocialAccountRow[];
 }
 
 export async function deleteSocialAccount(storeCode: string, accountId: string): Promise<boolean> {
