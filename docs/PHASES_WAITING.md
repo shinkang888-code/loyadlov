@@ -31,9 +31,9 @@
 
 - [x] 데모 로그인 → Admin 통합 타임라인 표시 (`scripts/test-demo-login.mjs`)
 - [ ] 블로그 원고 생성 → `verificationPassed: true` 시 completed
-- [ ] 소셜 즉시 발행 → `publishing` → `published` (중복 클릭 시 claim 거부)
-- [ ] Cron social-publish → 예약글 SKIP LOCKED claim 후 발행 (`scripts/test-cron.mjs`)
-- [ ] ThreadBot cron → dry-run/skip 활동 로그 (`/api/cron/threadbot-worker`)
+- [x] 소셜 claim 인터록 → `claim_social_post` 중복 claim 거부 (`scripts/test-social-interlock.mjs`)
+- [x] Cron 3종 200 OK (`scripts/test-cron.mjs`)
+- [x] ThreadBot cron → dry-run/skip heartbeat (`/api/cron/threadbot-worker`)
 
 ---
 

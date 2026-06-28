@@ -18,7 +18,13 @@ export type DbResult<T> = { data: T; error: DbError | null };
 type Filter =
   | { kind: "eq"; col: string; val: unknown }
   | { kind: "in"; col: string; vals: unknown[] }
-  | { kind: "not_null"; col: string };
+  | { kind: "not_null"; col: string }
+  | { kind: "gte"; col: string; val: unknown }
+  | { kind: "lte"; col: string; val: unknown }
+  | { kind: "lt"; col: string; val: unknown }
+  | { kind: "gt"; col: string; val: unknown }
+  | { kind: "ilike"; col: string; val: string }
+  | { kind: "or_ilike"; cols: string[]; pattern: string };
 
 type OrderBy = { col: string; ascending: boolean };
 
@@ -116,6 +122,48 @@ class NeonQueryBuilder<T = unknown> implements PromiseLike<DbResult<T>> {
     return this;
   }
 
+  gte(col: string, val: unknown): this {
+    this.filters.push({ kind: "gte", col, val });
+    return this;
+  }
+
+  lte(col: string, val: unknown): this {
+    this.filters.push({ kind: "lte", col, val });
+    return this;
+  }
+
+  lt(col: string, val: unknown): this {
+    this.filters.push({ kind: "lt", col, val });
+    return this;
+  }
+
+  gt(col: string, val: unknown): this {
+    this.filters.push({ kind: "gt", col, val });
+    return this;
+  }
+
+  ilike(col: string, val: string): this {
+    this.filters.push({ kind: "ilike", col, val });
+    return this;
+  }
+
+  /** PostgREST or 필터 — `col.ilike.%pat%,col2.ilike.%pat%` 형식 */
+  or(filter: string): this {
+    const parts = filter.split(",").map((p) => p.trim()).filter(Boolean);
+    const ilikeCols: string[] = [];
+    let pattern = "";
+    for (const part of parts) {
+      const m = part.match(/^([a-z_][a-z0-9_]*)\.ilike\.(.+)$/i);
+      if (!m) continue;
+      ilikeCols.push(m[1]);
+      pattern = m[2];
+    }
+    if (ilikeCols.length > 0) {
+      this.filters.push({ kind: "or_ilike", cols: ilikeCols, pattern });
+    }
+    return this;
+  }
+
   order(col: string, opts?: { ascending?: boolean }): this {
     this.orders.push({ col, ascending: opts?.ascending ?? true });
     return this;
@@ -162,6 +210,29 @@ class NeonQueryBuilder<T = unknown> implements PromiseLike<DbResult<T>> {
         }
       } else if (f.kind === "not_null") {
         parts.push(`${quoteIdent(f.col)} IS NOT NULL`);
+      } else if (f.kind === "gte") {
+        parts.push(`${quoteIdent(f.col)} >= $${idx++}`);
+        params.push(serializeForPg(f.val));
+      } else if (f.kind === "lte") {
+        parts.push(`${quoteIdent(f.col)} <= $${idx++}`);
+        params.push(serializeForPg(f.val));
+      } else if (f.kind === "lt") {
+        parts.push(`${quoteIdent(f.col)} < $${idx++}`);
+        params.push(serializeForPg(f.val));
+      } else if (f.kind === "gt") {
+        parts.push(`${quoteIdent(f.col)} > $${idx++}`);
+        params.push(serializeForPg(f.val));
+      } else if (f.kind === "ilike") {
+        parts.push(`${quoteIdent(f.col)} ILIKE $${idx++}`);
+        params.push(f.val);
+      } else if (f.kind === "or_ilike") {
+        const orParts: string[] = [];
+        const likeVal = `%${f.pattern.replace(/^%|%$/g, "")}%`;
+        for (const col of f.cols) {
+          orParts.push(`${quoteIdent(col)} ILIKE $${idx++}`);
+          params.push(likeVal);
+        }
+        parts.push(`(${orParts.join(" OR ")})`);
       }
     }
 
