@@ -101,10 +101,15 @@ export async function generateTextContent(data: TextGenParams): Promise<TextGenR
 import {
   buildFallbackReviewDraft,
   buildReviewDraftPrompt,
-  buildReviewDraftRepairPrompt,
   parseReviewDraftResponse,
-  validateReviewDraft,
 } from "@/lib/blog/draftAi";
+import {
+  buildQuantifiedRepairPrompt,
+  buildVerificationSummary,
+  enforceDraftMetrics,
+  evaluateDraftAgainstCampaign,
+  type DraftEvaluation,
+} from "@/lib/blog/draftVerification";
 import type { NormalizedCampaign, ParsedDraft } from "@/lib/blog/types";
 
 const BLOG_DRAFT_SYSTEM_PROMPT = `너는 한국 네이버 블로그 원고를 쓰는 전문 블로거다.
@@ -131,40 +136,59 @@ async function callLovableChat(messages: { role: string; content: string }[]): P
   return json.choices?.[0]?.message?.content?.trim() ?? "";
 }
 
-export type BlogDraftResult = ParsedDraft & { model: string };
+export type BlogDraftResult = ParsedDraft & {
+  model: string;
+  verificationPassed: boolean;
+  verification: Record<string, unknown>;
+};
 
 export async function generateBlogDraft(
   campaign: NormalizedCampaign,
-  opts: { writer?: string } = {}
+  opts: { writer?: string } = {},
 ): Promise<BlogDraftResult> {
   const model = "google/gemini-2.5-flash";
-  const minBody = Math.max(180, Math.floor((campaign.bodyMinCharsNoSpaces || 1000) * 0.6));
+  const evalOpts = { skipMediaForPlainText: true as const };
+
+  const finish = (draft: ParsedDraft, evaluation: DraftEvaluation, modelLabel = model): BlogDraftResult => ({
+    ...draft,
+    model: modelLabel,
+    verificationPassed: evaluation.passed,
+    verification: buildVerificationSummary(evaluation),
+  });
 
   const raw = await callLovableChat([
     { role: "system", content: BLOG_DRAFT_SYSTEM_PROMPT },
     { role: "user", content: buildReviewDraftPrompt(campaign, opts) },
   ]);
-  const parsed = parseReviewDraftResponse(raw);
-  if (validateReviewDraft(parsed, { minBodyLength: minBody }).ok) {
-    return { ...parsed, model };
+  let parsed = parseReviewDraftResponse(raw);
+  let evaluation = evaluateDraftAgainstCampaign(campaign, parsed, evalOpts);
+  if (evaluation.passed) {
+    return finish(parsed, evaluation);
   }
 
-  // 1회 재작성 시도
+  // 2차: 역산 리페어 프롬프트 (불합격 수치 기반)
   try {
     const repaired = await callLovableChat([
       { role: "system", content: BLOG_DRAFT_SYSTEM_PROMPT },
-      { role: "user", content: buildReviewDraftRepairPrompt(campaign, opts) },
+      { role: "user", content: buildQuantifiedRepairPrompt(campaign, evaluation, opts) },
     ]);
-    const reparsed = parseReviewDraftResponse(repaired);
-    if (validateReviewDraft(reparsed, { minBodyLength: minBody }).ok) {
-      return { ...reparsed, model };
+    parsed = parseReviewDraftResponse(repaired);
+    evaluation = evaluateDraftAgainstCampaign(campaign, parsed, evalOpts);
+    if (evaluation.passed) {
+      return finish(parsed, evaluation, `${model} (repaired)`);
     }
   } catch {
     /* 폴백으로 진행 */
   }
 
-  // 로컬 폴백 초안
-  return { ...buildFallbackReviewDraft(campaign, opts), model: `${model} (fallback)` };
+  // 3차: 로컬 폴백 + CPU 메트릭 보정 (4단계 루프 최종 단계)
+  let fallback = enforceDraftMetrics(buildFallbackReviewDraft(campaign, opts), campaign);
+  evaluation = evaluateDraftAgainstCampaign(campaign, fallback, evalOpts);
+  if (!evaluation.passed) {
+    fallback = enforceDraftMetrics(fallback, campaign);
+    evaluation = evaluateDraftAgainstCampaign(campaign, fallback, evalOpts);
+  }
+  return finish(fallback, evaluation, `${model} (fallback)`);
 }
 
 export type ImageGenResult = {

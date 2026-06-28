@@ -10,6 +10,7 @@ import {
   type TextGenParams,
 } from "@/lib/generation/aiCore.server";
 import { normalizeCampaignInput } from "@/lib/blog/campaignInput";
+import { buildVerificationFailureMessage } from "@/lib/blog/draftVerification";
 import { buildTextMetrics } from "@/lib/blog/textMetrics";
 
 type AdminClient = NeonDbClient;
@@ -148,24 +149,51 @@ async function processBlogDraftJob(admin: AdminClient, job: GenerationJobRow): P
   });
 
   const metrics = buildTextMetrics(draft.body, campaign);
-  await completeJob(
-    admin,
-    job,
-    {
-      title: draft.title,
-      body,
-      source: draft.source,
-      writer: input.writer ?? "기본 작가",
-      metrics: {
-        bodyCharsNoSpaces: metrics.bodyCharsNoSpaces,
-        bodyTarget: metrics.bodyTarget,
-        bodyPassed: metrics.bodyPassed,
-        keywordReport: metrics.keywordReport,
-      },
-      draftId,
+  const resultPayload = {
+    title: draft.title,
+    body,
+    source: draft.source,
+    writer: input.writer ?? "기본 작가",
+    verificationPassed: draft.verificationPassed,
+    verification: draft.verification,
+    metrics: {
+      bodyCharsNoSpaces: metrics.bodyCharsNoSpaces,
+      bodyTarget: metrics.bodyTarget,
+      bodyPassed: metrics.bodyPassed,
+      keywordReport: metrics.keywordReport,
     },
-    draftId
-  );
+    draftId,
+  };
+
+  if (!draft.verificationPassed) {
+    await admin
+      .from("generation_jobs")
+      .update({
+        status: "failed",
+        progress: 100,
+        error_message: buildVerificationFailureMessage(draft.verification),
+        result: resultPayload as Json,
+        draft_id: draftId,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+    await logActivity(admin, {
+      actorId: job.created_by,
+      storeCode: job.store_code,
+      action: "generation_failed",
+      resourceType: "generation_job",
+      resourceId: job.id,
+      metadata: {
+        jobType: job.job_type,
+        error: "verification_failed",
+        verification: draft.verification,
+      },
+    });
+    return;
+  }
+
+  await completeJob(admin, job, resultPayload, draftId);
 }
 
 async function processImageJob(admin: AdminClient, job: GenerationJobRow): Promise<void> {
