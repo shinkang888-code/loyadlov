@@ -66,10 +66,14 @@ function AuthPage() {
     setErr(null);
     setLoading(true);
     try {
-      // 1) 서버에서 데모 계정·프로필 보장 (Origin 헤더 포함)
-      await demoLoginFn({ data: {} });
+      // 1) 서버: 데모 계정·프로필 DB 보장 (Auth REST — getSession 불필요)
+      try {
+        await demoLoginFn({ data: {} });
+      } catch (e) {
+        console.warn("demoLoginFn profile sync:", e);
+      }
 
-      // 2) 클라이언트 로그인
+      // 2) 클라이언트 로그인 (same-origin /api/auth 프록시)
       const signIn = await supabase.auth.signInWithPassword({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
