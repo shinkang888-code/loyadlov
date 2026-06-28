@@ -281,6 +281,17 @@ export function createNeonDb(): NeonDbClient {
           const rows = await sql`SELECT * FROM public.claim_generation_jobs(${limit})`;
           return { data: rows as T, error: null };
         }
+        if (fn === "claim_social_post") {
+          const postId = String(args.p_post_id ?? "");
+          const rows = await sql`SELECT * FROM public.claim_social_post(${postId}::uuid)`;
+          const row = Array.isArray(rows) ? rows[0] : rows;
+          return { data: row as T, error: null };
+        }
+        if (fn === "claim_due_social_posts") {
+          const limit = Number(args.p_limit ?? 20);
+          const rows = await sql`SELECT * FROM public.claim_due_social_posts(${limit})`;
+          return { data: rows as T, error: null };
+        }
         return { data: null as T, error: { message: `Unknown RPC: ${fn}` } };
       } catch (e) {
         return {

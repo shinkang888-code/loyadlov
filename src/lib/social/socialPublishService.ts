@@ -1,5 +1,5 @@
 /**
- * 소셜 포스트 발행 오케스트레이터
+ * 소셜 포스트 발행 오케스트레이터 + 인터록(claim → publish → persist)
  */
 
 import { publishToInstagram } from "@/lib/social/instagramPublisher";
@@ -10,9 +10,12 @@ import { publishToTikTok } from "@/lib/social/tiktokPublisher";
 import { publishToKakao } from "@/lib/social/kakaoPublisher";
 import { resolveKakaoChannelPublicId } from "@/lib/social/kakaoOAuthSettings";
 import {
+  claimSocialPostForPublish,
   getSocialAccountForPublish,
+  getSocialPostById,
   markSocialPostFailed,
   markSocialPostPublished,
+  resetPublishingPostToFailed,
 } from "@/lib/social/socialAccountServer";
 import { decryptToken } from "@/lib/social/tokenCrypto";
 import type { NaverBlogPostOptions, SocialPostRow } from "@/lib/social/types";
@@ -21,16 +24,38 @@ export type PublishOutcome =
   | { ok: true; platformPostId: string }
   | { ok: false; error: string };
 
+/** 발행 직전 상태·영속화 인터록 */
+async function assertPublishInterlock(post: SocialPostRow): Promise<string | null> {
+  if (post.status !== "publishing") {
+    return `발행 인터록: status=${post.status} (publishing 필요)`;
+  }
+  const fresh = await getSocialPostById(post.id);
+  if (!fresh) return "발행 인터록: 포스트 레코드 없음";
+  if (fresh.status !== "publishing") {
+    return `발행 인터록: 동시 수정 감지 (status=${fresh.status})`;
+  }
+  if (!fresh.caption?.trim()) return "발행 인터록: 본문(caption) 비어 있음";
+  return null;
+}
+
 export async function publishSocialPost(
   post: SocialPostRow,
-  origin: string
+  origin: string,
 ): Promise<PublishOutcome> {
+  const interlockErr = await assertPublishInterlock(post);
+  if (interlockErr) {
+    await resetPublishingPostToFailed(post.id, interlockErr);
+    return { ok: false, error: interlockErr };
+  }
+
   if (!post.account_id) {
+    await markSocialPostFailed(post.id, "연결된 소셜 계정이 없습니다.");
     return { ok: false, error: "연결된 소셜 계정이 없습니다." };
   }
 
   const account = await getSocialAccountForPublish(post.account_id);
   if (!account) {
+    await markSocialPostFailed(post.id, "소셜 계정을 찾을 수 없거나 토큰이 만료되었습니다.");
     return { ok: false, error: "소셜 계정을 찾을 수 없거나 토큰이 만료되었습니다." };
   }
 
@@ -61,7 +86,8 @@ export async function publishSocialPost(
       if (!igId) {
         result = {
           ok: false,
-          error: "Instagram Business 계정이 연결되지 않았습니다. Facebook Page + IG Business 연결 후 재인증하세요.",
+          error:
+            "Instagram Business 계정이 연결되지 않았습니다. Facebook Page + IG Business 연결 후 재인증하세요.",
         };
         break;
       }
@@ -92,7 +118,7 @@ export async function publishSocialPost(
         account.accessToken,
         post.caption,
         mediaUrl,
-        naverOpts
+        naverOpts,
       );
       break;
     }
@@ -131,15 +157,22 @@ export async function publishSocialPost(
 
 export async function publishSocialPostById(
   postId: string,
-  origin: string
+  origin: string,
 ): Promise<PublishOutcome & { postId: string }> {
-  const { getSocialPostById } = await import("@/lib/social/socialAccountServer");
-  const post = await getSocialPostById(postId);
-  if (!post) {
+  const existing = await getSocialPostById(postId);
+  if (!existing) {
     return { ok: false, error: "포스트를 찾을 수 없습니다.", postId };
   }
-  if (post.status === "published") {
+  if (existing.status === "published") {
     return { ok: false, error: "이미 발행된 포스트입니다.", postId };
+  }
+  if (existing.status === "publishing") {
+    return { ok: false, error: "다른 프로세스에서 발행 중입니다.", postId };
+  }
+
+  const post = await claimSocialPostForPublish(postId);
+  if (!post) {
+    return { ok: false, error: "발행 claim 실패 (이미 처리 중이거나 상태 불일치)", postId };
   }
 
   const outcome = await publishSocialPost(post, origin);

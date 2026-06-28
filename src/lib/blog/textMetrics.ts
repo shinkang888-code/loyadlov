@@ -23,9 +23,14 @@ export function countKeywordOccurrences(body: unknown, keyword: unknown): number
   const kw = String(keyword ?? "").trim();
   if (!kw) return 0;
   const text = normalizeBodyText(body);
-  const flags = /[A-Za-z]/.test(kw) ? "giu" : "gu";
-  const matches = text.match(new RegExp(escapeRegExp(kw), flags));
-  return matches ? matches.length : 0;
+  if (/^[A-Za-z0-9_+-]+$/.test(kw)) {
+    const flags = "giu";
+    const re = new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapeRegExp(kw)}(?=[^\\p{L}\\p{N}]|$)`, flags);
+    return (text.match(re) ?? []).length;
+  }
+  const flags = "gu";
+  const re = new RegExp(escapeRegExp(kw), flags);
+  return (text.match(re) ?? []).length;
 }
 
 export function buildKeywordReport(

@@ -530,6 +530,17 @@ export async function processGenerationJob(
   job: GenerationJobRow
 ): Promise<void> {
   try {
+    if (job.status === "claimed" || job.status === "pending") {
+      await admin
+        .from("generation_jobs")
+        .update({
+          status: "processing",
+          started_at: job.started_at ?? new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", job.id);
+    }
+
     if (job.job_type === "text") {
       await processTextJob(admin, job);
     } else if (job.job_type === "image") {

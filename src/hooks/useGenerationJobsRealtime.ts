@@ -81,7 +81,9 @@ export function useGenerationJobsRealtime(
     };
   }, [storeCode, notify, onUpdate, listJobs]);
 
-  const activeCount = jobs.filter((j) => j.status === "pending" || j.status === "processing").length;
+  const activeCount = jobs.filter(
+    (j) => j.status === "pending" || j.status === "claimed" || j.status === "processing",
+  ).length;
 
   return { jobs, activeCount, setJobs };
 }

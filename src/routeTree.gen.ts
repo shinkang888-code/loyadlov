@@ -14,11 +14,13 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGenerateImageRouteImport } from './routes/api/generate-image'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiTimelineStreamRouteImport } from './routes/api/timeline/stream'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 import { Route as ApiKakaoWebhookRouteImport } from './routes/api/kakao/webhook'
 import { Route as ApiEmailInboundRouteImport } from './routes/api/email/inbound'
 import { Route as ApiCronSocialPublishRouteImport } from './routes/api/cron/social-publish'
 import { Route as ApiCronGenerationWorkerRouteImport } from './routes/api/cron/generation-worker'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiSocialYoutubeOauthStartRouteImport } from './routes/api/social/youtube/oauth/start'
 import { Route as ApiSocialYoutubeOauthCallbackRouteImport } from './routes/api/social/youtube/oauth/callback'
 import { Route as ApiSocialTiktokOauthStartRouteImport } from './routes/api/social/tiktok/oauth/start'
@@ -54,6 +56,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiTimelineStreamRoute = ApiTimelineStreamRouteImport.update({
+  id: '/api/timeline/stream',
+  path: '/api/timeline/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
   id: '/api/stripe/webhook',
   path: '/api/stripe/webhook',
@@ -77,6 +84,11 @@ const ApiCronSocialPublishRoute = ApiCronSocialPublishRouteImport.update({
 const ApiCronGenerationWorkerRoute = ApiCronGenerationWorkerRouteImport.update({
   id: '/api/cron/generation-worker',
   path: '/api/cron/generation-worker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSocialYoutubeOauthStartRoute =
@@ -144,11 +156,13 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
   '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/timeline/stream': typeof ApiTimelineStreamRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
   '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
@@ -165,11 +179,13 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
   '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/timeline/stream': typeof ApiTimelineStreamRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
   '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
@@ -188,11 +204,13 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
   '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/timeline/stream': typeof ApiTimelineStreamRoute
   '/api/social/kakao/oauth/callback': typeof ApiSocialKakaoOauthCallbackRoute
   '/api/social/kakao/oauth/start': typeof ApiSocialKakaoOauthStartRoute
   '/api/social/meta/oauth/callback': typeof ApiSocialMetaOauthCallbackRoute
@@ -211,11 +229,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/api/generate-image'
+    | '/api/auth/$'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
     | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
+    | '/api/timeline/stream'
     | '/api/social/kakao/oauth/callback'
     | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
@@ -232,11 +252,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/api/generate-image'
+    | '/api/auth/$'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
     | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
+    | '/api/timeline/stream'
     | '/api/social/kakao/oauth/callback'
     | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
@@ -254,11 +276,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/api/generate-image'
+    | '/api/auth/$'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
     | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
+    | '/api/timeline/stream'
     | '/api/social/kakao/oauth/callback'
     | '/api/social/kakao/oauth/start'
     | '/api/social/meta/oauth/callback'
@@ -276,11 +300,13 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiGenerateImageRoute: typeof ApiGenerateImageRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronGenerationWorkerRoute: typeof ApiCronGenerationWorkerRoute
   ApiCronSocialPublishRoute: typeof ApiCronSocialPublishRoute
   ApiEmailInboundRoute: typeof ApiEmailInboundRoute
   ApiKakaoWebhookRoute: typeof ApiKakaoWebhookRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
+  ApiTimelineStreamRoute: typeof ApiTimelineStreamRoute
   ApiSocialKakaoOauthCallbackRoute: typeof ApiSocialKakaoOauthCallbackRoute
   ApiSocialKakaoOauthStartRoute: typeof ApiSocialKakaoOauthStartRoute
   ApiSocialMetaOauthCallbackRoute: typeof ApiSocialMetaOauthCallbackRoute
@@ -330,6 +356,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/timeline/stream': {
+      id: '/api/timeline/stream'
+      path: '/api/timeline/stream'
+      fullPath: '/api/timeline/stream'
+      preLoaderRoute: typeof ApiTimelineStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/stripe/webhook': {
       id: '/api/stripe/webhook'
       path: '/api/stripe/webhook'
@@ -363,6 +396,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/generation-worker'
       fullPath: '/api/cron/generation-worker'
       preLoaderRoute: typeof ApiCronGenerationWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/social/youtube/oauth/start': {
@@ -454,11 +494,13 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiGenerateImageRoute: ApiGenerateImageRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronGenerationWorkerRoute: ApiCronGenerationWorkerRoute,
   ApiCronSocialPublishRoute: ApiCronSocialPublishRoute,
   ApiEmailInboundRoute: ApiEmailInboundRoute,
   ApiKakaoWebhookRoute: ApiKakaoWebhookRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
+  ApiTimelineStreamRoute: ApiTimelineStreamRoute,
   ApiSocialKakaoOauthCallbackRoute: ApiSocialKakaoOauthCallbackRoute,
   ApiSocialKakaoOauthStartRoute: ApiSocialKakaoOauthStartRoute,
   ApiSocialMetaOauthCallbackRoute: ApiSocialMetaOauthCallbackRoute,

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveRequestedStoreCode } from "@/lib/storeContext.server";
 import type { Database } from "@/integrations/supabase/types";
-import { generateGeminiText } from "@/lib/integrations/gemini.server";
+import { generateGeminiTextStream } from "@/lib/integrations/gemini.server";
 
 const StoreInput = z.object({ storeCode: z.string().trim().optional() });
 
@@ -442,16 +442,19 @@ export const generateThreadReplyFn = createServerFn({ method: "POST" })
 
 게시글: """${data.postText}"""`;
 
-    const { text, model } = await generateGeminiText(prompt, {
+    const streamed = await generateGeminiTextStream(prompt, {
       model: data.model,
       temperature: 0.85,
       maxOutputTokens: 256,
     });
-    const reply = text.trim();
-    if (reply.toUpperCase() === "SKIP" || reply === "") {
-      return { reply: "", reason: "광고·홍보·분쟁성 글로 판단되어 스킵", model };
+    if (streamed.skipped) {
+      return { reply: "", reason: "광고·홍보·분쟁성 글로 판단되어 스킵 (조기 중단)", model: streamed.model };
     }
-    return { reply, reason: `${TONE_GUIDE[tone]} 댓글 생성`, model };
+    const reply = streamed.text.trim();
+    if (reply.toUpperCase() === "SKIP" || reply === "") {
+      return { reply: "", reason: "광고·홍보·분쟁성 글로 판단되어 스킵", model: streamed.model };
+    }
+    return { reply, reason: `${TONE_GUIDE[tone]} 댓글 생성`, model: streamed.model };
   });
 
 // ── 수동 1회 실행 (마지막 실행 시각 기록) ───────────────

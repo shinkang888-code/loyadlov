@@ -161,7 +161,7 @@ export const listGenerationJobsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     StoreCodeInput.extend({
-      status: z.enum(["pending", "processing", "completed", "failed", "cancelled", "active"]).optional(),
+      status: z.enum(["pending", "claimed", "processing", "completed", "failed", "cancelled", "active"]).optional(),
       limit: z.number().int().min(1).max(50).optional(),
     }).parse(input)
   )
@@ -177,7 +177,7 @@ export const listGenerationJobsFn = createServerFn({ method: "POST" })
       .limit(data.limit ?? 30);
 
     if (data.status === "active") {
-      query = query.in("status", ["pending", "processing"]);
+      query = query.in("status", ["pending", "claimed", "processing"]);
     } else if (data.status) {
       query = query.eq("status", data.status);
     }

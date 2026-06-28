@@ -331,7 +331,7 @@ export const listQueueFn = createServerFn({ method: "POST" })
         .from("social_posts")
         .select("id, platform, status, scheduled_at, store_code, created_at, caption")
         .eq("store_code", storeCode)
-        .in("status", ["scheduled", "draft", "failed"])
+        .in("status", ["scheduled", "draft", "publishing", "failed"])
         .order("created_at", { ascending: false })
         .limit(20),
       supabase
@@ -345,7 +345,7 @@ export const listQueueFn = createServerFn({ method: "POST" })
         .from("generation_jobs")
         .select("id, job_type, status, progress, store_code, created_at")
         .eq("store_code", storeCode)
-        .in("status", ["pending", "processing", "failed"])
+        .in("status", ["pending", "claimed", "processing", "failed"])
         .order("created_at", { ascending: false })
         .limit(20),
     ]);

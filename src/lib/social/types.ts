@@ -8,7 +8,7 @@ export type SocialPlatform =
   | "tiktok"
   | "kakao";
 
-export type SocialPostStatus = "draft" | "scheduled" | "published" | "failed";
+export type SocialPostStatus = "draft" | "scheduled" | "publishing" | "published" | "failed";
 
 export type NaverBlogPostOptions = {
   categoryNo?: number;

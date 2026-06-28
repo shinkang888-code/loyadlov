@@ -59,6 +59,90 @@ export async function generateGeminiText(
   return { text, model };
 }
 
+export type GeminiStreamResult = {
+  text: string;
+  model: string;
+  skipped: boolean;
+  skipReason?: string;
+};
+
+/** ThreadBot SKIP 조기 중단 — 첫 토큰 블록에서 ^SKIP\b 감지 시 스트림 abort */
+export async function generateGeminiTextStream(
+  prompt: string,
+  opts: GeminiTextOptions & { skipToken?: RegExp } = {},
+): Promise<GeminiStreamResult> {
+  const apiKey = await resolveGeminiApiKey();
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY 미설정 — 관리자 콘솔 'API 연동'에서 키를 입력하세요.");
+  }
+  const model = opts.model || DEFAULT_GEMINI_MODEL;
+  const skipRe = opts.skipToken ?? /^SKIP\b/i;
+
+  const body: Record<string, unknown> = {
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: opts.temperature ?? 0.8,
+      maxOutputTokens: opts.maxOutputTokens ?? 512,
+    },
+  };
+  if (opts.system) {
+    body.systemInstruction = { parts: [{ text: opts.system }] };
+  }
+
+  const res = await fetch(
+    `${BASE}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Gemini stream ${res.status}: ${detail.slice(0, 200)}`);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("Gemini stream: empty body");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let accumulated = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const payload = line.slice(6).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const json = JSON.parse(payload) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const chunk = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+        if (!chunk) continue;
+        accumulated += chunk;
+        const head = accumulated.trim().slice(0, 24);
+        if (skipRe.test(head)) {
+          await reader.cancel();
+          return { text: "", model, skipped: true, skipReason: "SKIP token detected" };
+        }
+      } catch {
+        /* partial SSE line */
+      }
+    }
+  }
+
+  return { text: accumulated.trim(), model, skipped: false };
+}
+
 // === 이미지 생성 (Nano Banana 계열) ===
 // Nano Banana       = gemini-2.5-flash-image
 // Nano Banana Pro   = gemini-3-pro-image-preview

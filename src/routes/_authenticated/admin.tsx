@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
+import { useUnifiedTimeline } from "@/hooks/useUnifiedTimeline";
 import { generateContent } from "@/lib/ai.functions";
 import { saveDraft, scheduleDraft, listSchedule, unscheduleSlot, getStoreDrivePathFn, listDrafts, type ScheduleRow } from "@/lib/drafts.functions";
 import { generateVideoStoryboard } from "@/lib/video.functions";
@@ -71,8 +72,6 @@ import {
 } from "@/lib/social.functions";
 import {
   getCurrentUserFn,
-  listActivityFn,
-  listQueueFn,
   listStoresFn,
   type StoreSummary,
 } from "@/lib/profiles.functions";
@@ -1613,39 +1612,20 @@ function AiPanel({
   onConnectChannels: () => void;
 }) {
   const { accounts, isConnected, loading: accountsLoading } = useSocialAccounts(storeCode);
-  const listQueue = useServerFn(listQueueFn);
-  const listActivity = useServerFn(listActivityFn);
-
-  const [queueItems, setQueueItems] = useState<Array<{ title: string; status: string }>>([]);
-  const [activities, setActivities] = useState<
-    Array<{ action: string; resourceType: string; createdAt: string }>
-  >([]);
+  const { events: timelineEvents, loading: timelineLoading } = useUnifiedTimeline({
+    storeCode,
+    limit: 24,
+    pollMs: 4000,
+    enabled: Boolean(storeCode),
+  });
 
   const hasDisconnected = ALL_SOCIAL_PLATFORMS.some((p) => !isConnected(p));
 
-  useEffect(() => {
-    if (!storeCode) return;
-    void listQueue({ data: { storeCode } }).then((r: { items: Array<{ title: string; status: string }> }) => {
-      setQueueItems(
-        r.items.slice(0, 4).map((i) => ({
-          title: i.title,
-          status:
-            i.status === "publishing"
-              ? "running"
-              : i.status === "queued" || i.status === "scheduled"
-                ? "queued"
-                : i.status === "published"
-                  ? "done"
-                  : "queued",
-        }))
-      );
-    });
-    void listActivity({ data: { storeCode, limit: 5 } }).then(
-      (r: { activities: Array<{ action: string; resourceType: string; createdAt: string }> }) => {
-        setActivities(r.activities);
-      }
-    );
-  }, [storeCode, listQueue, listActivity]);
+  const mapTimelineBadge = (status: string): "done" | "running" | "queued" => {
+    if (["completed", "published", "done", "passed"].includes(status)) return "done";
+    if (["processing", "claimed", "publishing", "running"].includes(status)) return "running";
+    return "queued";
+  };
 
   return (
     <aside className="w-[340px] shrink-0 bg-card border-l border-border flex flex-col">
@@ -1706,57 +1686,39 @@ function AiPanel({
           )}
         </Card>
 
-        {/* Queue */}
+        {/* Unified timeline */}
         <Card
-          title="생성 · 발행 큐"
+          title="통합 타임라인"
           icon={<Layers className="size-4 text-crimson" />}
-          extra={queueItems.length > 0 ? `${queueItems.length} 작업` : undefined}
+          extra={timelineEvents.length > 0 ? `${timelineEvents.length} 이벤트` : undefined}
         >
-          <div className="space-y-2">
-            {queueItems.length === 0 ? (
-              <div className="text-xs text-muted-foreground px-3 py-2">대기 작업 없음</div>
+          <div className="space-y-2 max-h-[320px] overflow-y-auto">
+            {timelineLoading ? (
+              <div className="text-xs text-muted-foreground px-3 py-2 flex items-center gap-2">
+                <Loader2 className="size-3.5 animate-spin" /> 동기화 중…
+              </div>
+            ) : timelineEvents.length === 0 ? (
+              <div className="text-xs text-muted-foreground px-3 py-2">이벤트 없음</div>
             ) : (
-              queueItems.map((q) => (
-                <div key={q.title} className="px-3 py-2 rounded-lg bg-secondary border border-border">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium truncate">{q.title}</span>
-                    <QueueBadge s={q.status as "done" | "running" | "queued"} />
+              timelineEvents.slice(0, 12).map((ev) => (
+                <div key={ev.id} className="px-3 py-2 rounded-lg bg-secondary border border-border">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-medium truncate flex-1">{ev.title}</span>
+                    <QueueBadge s={mapTimelineBadge(ev.status)} />
                   </div>
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground">
+                    <span>{ev.kind}{ev.channel ? ` · ${ev.channel}` : ""}</span>
+                    <span>{formatRelativeTime(ev.timestamp)}</span>
+                  </div>
+                  {typeof ev.progress === "number" && ev.progress > 0 && ev.progress < 100 && (
+                    <div className="mt-1.5 h-1 rounded-full bg-border overflow-hidden">
+                      <div className="h-full bg-primary transition-all" style={{ width: `${ev.progress}%` }} />
+                    </div>
+                  )}
                 </div>
               ))
             )}
           </div>
-        </Card>
-
-        {/* Activity */}
-        <Card title="최근 활동" icon={<Activity className="size-4 text-primary" />}>
-          <ul className="space-y-3 text-xs">
-            {activities.length === 0 ? (
-              <li className="text-muted-foreground px-1">활동 기록 없음</li>
-            ) : (
-              activities.map((a) => (
-                <li key={a.createdAt + a.action} className="flex items-start gap-2">
-                  <div className="mt-0.5">
-                    {a.action.includes("publish") ? (
-                      <CheckCircle2 className="size-3.5 text-emerald-500" />
-                    ) : a.action.includes("fail") ? (
-                      <AlertCircle className="size-3.5 text-accent" />
-                    ) : (
-                      <Bot className="size-3.5 text-primary" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-foreground/90">
-                      {formatActivityLabel(a.action, a.resourceType)}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {formatRelativeTime(a.createdAt)}
-                    </div>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
         </Card>
       </div>
     </aside>

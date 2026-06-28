@@ -3,6 +3,7 @@ import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { NEON_AUTH_JWKS_URL } from "./auth-config";
 import { getNeonDb, type NeonDbClient } from "./supabase-compat.server";
+import { createTenantDb, resolveTenantScope, type TenantScope } from "./tenant-db.server";
 
 const JWKS = createRemoteJWKSet(new URL(NEON_AUTH_JWKS_URL));
 
@@ -38,7 +39,14 @@ export const requireNeonAuth = createMiddleware({ type: "function" }).server(asy
   if (!token) throw new Error("Unauthorized: No token provided");
 
   const { userId, claims } = await verifyBearerToken(token);
-  const db = getNeonDb();
+  const adminDb = getNeonDb();
+  let tenantScope: TenantScope;
+  try {
+    tenantScope = await resolveTenantScope(adminDb, userId);
+  } catch {
+    tenantScope = { userId, storeCode: "", isAdmin: false };
+  }
+  const db = tenantScope.storeCode ? createTenantDb(tenantScope) : adminDb;
 
   return next({
     context: {
@@ -46,6 +54,7 @@ export const requireNeonAuth = createMiddleware({ type: "function" }).server(asy
       db,
       userId,
       claims,
+      tenantScope,
     },
   });
 });
@@ -58,4 +67,5 @@ export type NeonAuthContext = {
   db: NeonDbClient;
   userId: string;
   claims: AuthClaims;
+  tenantScope?: TenantScope;
 };

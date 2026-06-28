@@ -181,15 +181,31 @@ export async function getSocialPostById(postId: string): Promise<SocialPostRow |
 }
 
 export async function listDueScheduledPosts(): Promise<SocialPostRow[]> {
-  const now = new Date().toISOString();
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin.rpc("claim_due_social_posts", { p_limit: 20 });
+  if (error || !data) return [];
+  return (Array.isArray(data) ? data : [data]).filter(Boolean) as SocialPostRow[];
+}
+
+export async function claimSocialPostForPublish(postId: string): Promise<SocialPostRow | null> {
+  const { data, error } = await supabaseAdmin.rpc("claim_social_post", { p_post_id: postId });
+  if (error || !data) return null;
+  return data as SocialPostRow;
+}
+
+export async function resetPublishingPostToFailed(
+  postId: string,
+  errorMessage: string,
+): Promise<boolean> {
+  const { error } = await supabaseAdmin
     .from("social_posts")
-    .select("*")
-    .eq("status", "scheduled")
-    .lte("scheduled_at", now)
-    .order("scheduled_at", { ascending: true })
-    .limit(50);
-  return (data ?? []) as SocialPostRow[];
+    .update({
+      status: "failed",
+      error_message: errorMessage.slice(0, 2000),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", postId)
+    .eq("status", "publishing");
+  return !error;
 }
 
 export async function createSocialPost(input: {
