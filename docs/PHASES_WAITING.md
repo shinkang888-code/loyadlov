@@ -6,9 +6,9 @@
 
 | ID | 항목 | 담당 | 작업 |
 |----|------|------|------|
-| H-01 | **Neon DB 마이그레이션 적용** | 운영 | `neon/migrations/002_tenant_rls.sql` 을 프로덕션 Neon에 적용 (`scripts/neon-db-push.ps1` 또는 Neon Console SQL) |
-| H-02 | **CRON_SECRET 설정** | 운영 | Vercel 환경변수 `CRON_SECRET` (16자+) — generation-worker / social-publish cron 인증 |
-| H-03 | **SOCIAL_TOKEN_ENCRYPTION_KEY** | 운영 | 프로덕션 전용 32바이트+ 랜덤 키 설정 (미설정 시 SESSION_SECRET fallback) |
+| H-01 | **Neon DB 마이그레이션 적용** | ✅ 완료 | `002_tenant_rls.sql` 적용됨 — `node scripts/verify-neon-migration.mjs` 로 검증 |
+| H-02 | **CRON_SECRET 설정** | ✅ 완료 | Vercel Production/Development 추가 — **재배포 후 cron 활성** |
+| H-03 | **SOCIAL_TOKEN_ENCRYPTION_KEY** | ✅ 완료 | Vercel Production/Development 추가 — **재배포 후 신규 토큰 암호화 적용** |
 
 ## 🟠 플랫폼 연동 (P1)
 
