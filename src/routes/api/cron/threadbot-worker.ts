@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { processPendingGenerationJobs } from "@/lib/generation/jobProcessor.server";
+import { runThreadbotCronCycle } from "@/lib/threadbotWorker.server";
 
 async function isCronAuthorized(request: Request): Promise<boolean> {
   const { resolveCronSecret } = await import("@/lib/platformSecrets.server");
@@ -12,14 +12,13 @@ async function isCronAuthorized(request: Request): Promise<boolean> {
 }
 
 async function runCron() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const summary = await processPendingGenerationJobs(supabaseAdmin, 5);
+  const summary = await runThreadbotCronCycle();
   return new Response(JSON.stringify({ ok: true, ...summary }), {
     headers: { "Content-Type": "application/json" },
   });
 }
 
-export const Route = createFileRoute("/api/cron/generation-worker")({
+export const Route = createFileRoute("/api/cron/threadbot-worker")({
   server: {
     handlers: {
       GET: async ({ request }) => {

@@ -49,11 +49,13 @@ const errAny = await page.locator('[class*="destructive"]').first().textContent(
 const url = page.url();
 const stillLoading = (await loading.count()) > 0 && (await loading.isVisible().catch(() => false));
 const adminShell = await page.locator("nav, aside, [data-testid='admin-shell']").first().isVisible().catch(() => false);
+const timeline = await page.getByText("통합 타임라인").isVisible().catch(() => false);
 
 console.log("\n=== Result ===");
 console.log("Final URL:", url);
 console.log("Still on loading screen:", stillLoading);
 console.log("Admin shell visible:", adminShell);
+console.log("Unified timeline visible:", timeline);
 console.log("Error visible:", errText > 0 ? errAny : "none");
 console.log("\n=== Network (auth/serverFn) ===");
 network.forEach((l) => console.log(l));

@@ -10,6 +10,10 @@
     {
       "path": "/api/cron/generation-worker",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/threadbot-worker",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

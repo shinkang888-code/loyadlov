@@ -18,6 +18,7 @@ import { Route as ApiTimelineStreamRouteImport } from './routes/api/timeline/str
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 import { Route as ApiKakaoWebhookRouteImport } from './routes/api/kakao/webhook'
 import { Route as ApiEmailInboundRouteImport } from './routes/api/email/inbound'
+import { Route as ApiCronThreadbotWorkerRouteImport } from './routes/api/cron/threadbot-worker'
 import { Route as ApiCronSocialPublishRouteImport } from './routes/api/cron/social-publish'
 import { Route as ApiCronGenerationWorkerRouteImport } from './routes/api/cron/generation-worker'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -74,6 +75,11 @@ const ApiKakaoWebhookRoute = ApiKakaoWebhookRouteImport.update({
 const ApiEmailInboundRoute = ApiEmailInboundRouteImport.update({
   id: '/api/email/inbound',
   path: '/api/email/inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronThreadbotWorkerRoute = ApiCronThreadbotWorkerRouteImport.update({
+  id: '/api/cron/threadbot-worker',
+  path: '/api/cron/threadbot-worker',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronSocialPublishRoute = ApiCronSocialPublishRouteImport.update({
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/cron/threadbot-worker': typeof ApiCronThreadbotWorkerRoute
   '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/cron/threadbot-worker': typeof ApiCronThreadbotWorkerRoute
   '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
@@ -207,6 +215,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/generation-worker': typeof ApiCronGenerationWorkerRoute
   '/api/cron/social-publish': typeof ApiCronSocialPublishRoute
+  '/api/cron/threadbot-worker': typeof ApiCronThreadbotWorkerRoute
   '/api/email/inbound': typeof ApiEmailInboundRoute
   '/api/kakao/webhook': typeof ApiKakaoWebhookRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
@@ -232,6 +241,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
+    | '/api/cron/threadbot-worker'
     | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
@@ -255,6 +265,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
+    | '/api/cron/threadbot-worker'
     | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
@@ -279,6 +290,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cron/generation-worker'
     | '/api/cron/social-publish'
+    | '/api/cron/threadbot-worker'
     | '/api/email/inbound'
     | '/api/kakao/webhook'
     | '/api/stripe/webhook'
@@ -303,6 +315,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronGenerationWorkerRoute: typeof ApiCronGenerationWorkerRoute
   ApiCronSocialPublishRoute: typeof ApiCronSocialPublishRoute
+  ApiCronThreadbotWorkerRoute: typeof ApiCronThreadbotWorkerRoute
   ApiEmailInboundRoute: typeof ApiEmailInboundRoute
   ApiKakaoWebhookRoute: typeof ApiKakaoWebhookRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
@@ -382,6 +395,13 @@ declare module '@tanstack/react-router' {
       path: '/api/email/inbound'
       fullPath: '/api/email/inbound'
       preLoaderRoute: typeof ApiEmailInboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/threadbot-worker': {
+      id: '/api/cron/threadbot-worker'
+      path: '/api/cron/threadbot-worker'
+      fullPath: '/api/cron/threadbot-worker'
+      preLoaderRoute: typeof ApiCronThreadbotWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/social-publish': {
@@ -497,6 +517,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronGenerationWorkerRoute: ApiCronGenerationWorkerRoute,
   ApiCronSocialPublishRoute: ApiCronSocialPublishRoute,
+  ApiCronThreadbotWorkerRoute: ApiCronThreadbotWorkerRoute,
   ApiEmailInboundRoute: ApiEmailInboundRoute,
   ApiKakaoWebhookRoute: ApiKakaoWebhookRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
