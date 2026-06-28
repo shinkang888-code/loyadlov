@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Sparkles, Store } from "lucide-react";
 import logo from "@/assets/loyard-logo.jpg";
 import { DEMO_EMAIL, DEMO_PROFILE } from "@/lib/demoAuth.constants";
+import { completeOnboardingFn, getCurrentUserFn } from "@/lib/profiles.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -30,43 +31,54 @@ type Profile = {
   onboarded_at: string | null;
 };
 
+function isDemoUser(user: { email?: string | null; user_metadata?: Record<string, unknown> }): boolean {
+  return (
+    user.email?.toLowerCase() === DEMO_EMAIL.toLowerCase() ||
+    user.user_metadata?.is_demo === true
+  );
+}
+
 function AuthedLayout() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
     setLoading(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
 
-    const isDemoUser =
-      u.user.email?.toLowerCase() === DEMO_EMAIL.toLowerCase() ||
-      u.user.user_metadata?.is_demo === true;
+      if (isDemoUser(u.user)) {
+        setProfile({
+          id: u.user.id,
+          store_code: DEMO_PROFILE.store_code,
+          business_name: DEMO_PROFILE.business_name,
+          industry: DEMO_PROFILE.industry,
+          instagram_handle: DEMO_PROFILE.instagram_handle,
+          naver_handle: DEMO_PROFILE.naver_handle,
+          onboarded_at: new Date().toISOString(),
+        });
+        return;
+      }
 
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, store_code, business_name, industry, instagram_handle, naver_handle, onboarded_at")
-      .eq("id", u.user.id)
-      .maybeSingle();
-
-    let profile = (data as Profile | null) ?? null;
-
-    if (isDemoUser) {
-      setProfile({
-        id: u.user.id,
-        store_code: DEMO_PROFILE.store_code,
-        business_name: DEMO_PROFILE.business_name,
-        industry: DEMO_PROFILE.industry,
-        instagram_handle: DEMO_PROFILE.instagram_handle,
-        naver_handle: DEMO_PROFILE.naver_handle,
-        onboarded_at: profile?.onboarded_at ?? new Date().toISOString(),
-      });
+      const me = await getCurrentUserFn({ data: {} });
+      const row = me.profile as Profile | null;
+      if (row) {
+        setProfile({
+          id: row.id,
+          store_code: row.store_code,
+          business_name: row.business_name,
+          industry: row.industry,
+          instagram_handle: row.instagram_handle,
+          naver_handle: row.naver_handle,
+          onboarded_at: row.onboarded_at,
+        });
+      } else {
+        setProfile(null);
+      }
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setProfile(profile);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -98,7 +110,6 @@ function Onboarding({ onDone }: { onDone: () => void }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Auto-generate a default store code suggestion
   useEffect(() => {
     if (!storeCode) {
       const yr = new Date().getFullYear();
@@ -112,20 +123,15 @@ function Onboarding({ onDone }: { onDone: () => void }) {
     setErr(null);
     setSaving(true);
     try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("세션이 만료되었습니다.");
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          store_code: storeCode.trim().toUpperCase(),
-          business_name: businessName.trim(),
-          industry: industry.trim() || null,
-          instagram_handle: instagram.trim() || null,
-          naver_handle: naver.trim() || null,
-          onboarded_at: new Date().toISOString(),
-        })
-        .eq("id", u.user.id);
-      if (error) throw error;
+      await completeOnboardingFn({
+        data: {
+          storeCode,
+          businessName,
+          industry: industry || undefined,
+          instagramHandle: instagram || undefined,
+          naverHandle: naver || undefined,
+        },
+      });
       onDone();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "저장 실패");

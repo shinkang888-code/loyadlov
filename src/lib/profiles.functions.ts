@@ -533,3 +533,36 @@ export const assignMemberRoleFn = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+export const completeOnboardingFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        storeCode: z.string().min(1),
+        businessName: z.string().min(1),
+        industry: z.string().optional(),
+        instagramHandle: z.string().optional(),
+        naverHandle: z.string().optional(),
+      })
+      .parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const email = claims?.email?.toString() ?? null;
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: userId,
+        email,
+        store_code: data.storeCode.trim().toUpperCase(),
+        business_name: data.businessName.trim(),
+        industry: data.industry?.trim() || null,
+        instagram_handle: data.instagramHandle?.trim() || null,
+        naver_handle: data.naverHandle?.trim() || null,
+        onboarded_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
