@@ -28,7 +28,10 @@ export const lovable = {
       }
 
       try {
-        await supabase.auth.setSession(result.tokens);
+        await supabase.auth.setSession({
+          access_token: result.tokens.access_token,
+          refresh_token: result.tokens.refresh_token,
+        });
       } catch (e) {
         return { error: e instanceof Error ? e : new Error(String(e)) };
       }

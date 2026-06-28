@@ -1,56 +1,48 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getNeonDb } from "@/integrations/neon/supabase-compat.server";
+import { createAuthClient } from "@neondatabase/auth";
+import { SupabaseAuthAdapter } from "@neondatabase/auth/vanilla/adapters";
 import { DEMO_EMAIL, DEMO_PROFILE, DEMO_PASSWORD } from "@/lib/demoAuth.constants";
 
 async function findDemoUserId(): Promise<string | null> {
-  const { data } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("email", DEMO_EMAIL)
-    .maybeSingle();
-  if (data?.id) return data.id;
-
-  const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const found = list.users.find((u) => u.email?.toLowerCase() === DEMO_EMAIL.toLowerCase());
-  return found?.id ?? null;
+  const db = getNeonDb();
+  const { data } = await db.from("profiles").select("id").eq("email", DEMO_EMAIL).maybeSingle();
+  const row = data as { id?: string } | null;
+  return row?.id ?? null;
 }
 
-/** 데모 계정·프로필·owner 역할을 보장 (service role) */
-export async function ensureDemoAccount(): Promise<void> {
-  let userId = await findDemoUserId();
+function getServerNeonAuth() {
+  const url = process.env.NEON_AUTH_URL?.trim() || process.env.VITE_NEON_AUTH_URL?.trim();
+  if (!url) throw new Error("Missing NEON_AUTH_URL");
+  return createAuthClient(url.replace(/\/$/, ""), { adapter: SupabaseAuthAdapter() });
+}
 
-  if (!userId) {
-    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+/** 데모 계정·프로필·owner 역할 보장 (Neon Auth + Postgres) */
+export async function ensureDemoAccount(): Promise<void> {
+  const auth = getServerNeonAuth();
+  const db = getNeonDb();
+
+  let signIn = await auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+  if (signIn.error) {
+    const signUp = await auth.signUp({
       email: DEMO_EMAIL,
       password: DEMO_PASSWORD,
-      email_confirm: true,
-      user_metadata: {
-        display_name: DEMO_PROFILE.display_name,
-        is_demo: true,
+      options: {
+        data: { ...DEMO_PROFILE, is_demo: true },
       },
     });
-
-    if (error) {
-      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      const found = list.users.find((u) => u.email?.toLowerCase() === DEMO_EMAIL.toLowerCase());
-      if (!found) throw new Error(error.message);
-      userId = found.id;
-    } else {
-      userId = created.user!.id;
+    if (signUp.error && !/already registered|already been registered|exists/i.test(signUp.error.message)) {
+      throw new Error(signUp.error.message);
     }
+    signIn = await auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+    if (signIn.error) throw new Error(signIn.error.message);
   }
 
-  await supabaseAdmin.auth.admin.updateUserById(userId, {
-    password: DEMO_PASSWORD,
-    user_metadata: {
-      display_name: DEMO_PROFILE.display_name,
-      is_demo: true,
-    },
-  });
+  let userId = signIn.data.user?.id ?? (await findDemoUserId());
+  if (!userId) throw new Error("데모 사용자 ID를 확인할 수 없습니다.");
 
-  // store_code 변경 트리거 회피: 데모 프로필은 삭제 후 재삽입
-  await supabaseAdmin.from("profiles").delete().eq("id", userId);
+  await db.from("profiles").delete().eq("id", userId);
 
-  const { error: profileErr } = await supabaseAdmin.from("profiles").insert({
+  const { error: profileErr } = await db.from("profiles").insert({
     id: userId,
     email: DEMO_EMAIL,
     display_name: DEMO_PROFILE.display_name,
@@ -64,7 +56,7 @@ export async function ensureDemoAccount(): Promise<void> {
 
   if (profileErr) throw new Error(profileErr.message);
 
-  const { error: roleErr } = await supabaseAdmin
+  const { error: roleErr } = await db
     .from("user_roles")
     .upsert({ user_id: userId, role: "owner" }, { onConflict: "user_id,role" });
 

@@ -97,32 +97,19 @@ function AuthPage() {
         }
       }
 
-      // 3) 서버에서 데모 계정·비밀번호 재설정 + 매직링크 (service role 필요)
-      const serverLogin = Promise.race([
-        demoLoginFn({ data: {} }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("데모 서버 응답 시간 초과")), 12000)
-        ),
-      ]);
-      const { email, tokenHash } = await serverLogin;
-      const { error: otpErr } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: "email",
+      // 3) 서버에서 데모 프로필 보장 후 재시도
+      await demoLoginFn({ data: {} });
+      const retry = await supabase.auth.signInWithPassword({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
       });
-      if (otpErr) {
-        const retryOtp = await supabase.auth.verifyOtp({
-          email,
-          token_hash: tokenHash,
-          type: "magiclink",
-        });
-        if (retryOtp.error) throw retryOtp.error;
-      }
+      if (retry.error) throw retry.error;
       navigate({ to: "/admin" });
     } catch (e2) {
       const msg = e2 instanceof Error ? e2.message : "데모 로그인에 실패했습니다.";
       setErr(
-        msg.includes("Missing Supabase") || msg.includes("SERVICE_ROLE")
-          ? "데모 로그인 설정이 아직 완료되지 않았습니다. Vercel에 SUPABASE_SERVICE_ROLE_KEY를 추가해 주세요."
+        msg.includes("Missing") && msg.includes("AUTH")
+          ? "Neon Auth URL이 설정되지 않았습니다. Vercel에 NEON_AUTH_URL을 추가해 주세요."
           : msg
       );
     } finally {

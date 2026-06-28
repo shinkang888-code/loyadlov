@@ -1,5 +1,5 @@
 // filepath: src/lib/generation/jobProcessor.server.ts
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { NeonDbClient } from "@/integrations/neon/supabase-compat.server";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { logActivity } from "@/lib/activity.server";
 import {
@@ -12,7 +12,7 @@ import {
 import { normalizeCampaignInput } from "@/lib/blog/campaignInput";
 import { buildTextMetrics } from "@/lib/blog/textMetrics";
 
-type AdminClient = SupabaseClient<Database>;
+type AdminClient = NeonDbClient;
 
 export type GenerationJobRow = Database["public"]["Tables"]["generation_jobs"]["Row"];
 

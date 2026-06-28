@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { listLeadsFn, updateLeadFn, type LeadRow } from "@/lib/leads.functions";
 import { Loader2, Phone, Store, RefreshCw, Inbox, MessageCircle, FileText } from "lucide-react";
 import { KakaoConsultPanel } from "@/components/KakaoConsultPanel";
 
@@ -41,18 +42,7 @@ export function LeadsPanel({ storeCode, storeName }: LeadsProps) {
   );
 }
 
-type Lead = {
-  id: string;
-  name: string;
-  phone: string;
-  store_name: string | null;
-  industry: string | null;
-  message: string | null;
-  status: "new" | "contacted" | "converted" | "dropped";
-  admin_note: string | null;
-  source: string | null;
-  created_at: string;
-};
+type Lead = LeadRow;
 
 const STATUS_META = {
   new: { label: "신규", cls: "bg-accent-gradient text-accent-foreground" },
@@ -64,6 +54,8 @@ const STATUS_META = {
 const STATUSES: Lead["status"][] = ["new", "contacted", "converted", "dropped"];
 
 function LandingLeadsView() {
+  const listLeads = useServerFn(listLeadsFn);
+  const updateLead = useServerFn(updateLeadFn);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | Lead["status"]>("all");
@@ -72,29 +64,26 @@ function LandingLeadsView() {
   const load = async () => {
     setLoading(true);
     setError("");
-    const { data, error } = await supabase
-      .from("contact_submissions")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) {
-      setError(error.message);
-    } else {
-      setLeads((data ?? []) as Lead[]);
+    try {
+      const res = await listLeads({ data: {} });
+      setLeads(res.leads);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "불러오기 실패");
     }
     setLoading(false);
   };
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [listLeads]);
 
   const updateStatus = async (id: string, status: Lead["status"]) => {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)));
-    const { error } = await supabase
-      .from("contact_submissions")
-      .update({ status })
-      .eq("id", id);
-    if (error) void load();
+    try {
+      await updateLead({ data: { id, status } });
+    } catch {
+      void load();
+    }
   };
 
   const visible = leads.filter((l) => filter === "all" || l.status === filter);

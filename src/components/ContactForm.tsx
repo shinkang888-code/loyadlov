@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { z } from "zod";
 import { Send, Check, Loader2, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { submitContactFn } from "@/lib/leads.functions";
 
 const schema = z.object({
   name: z.string().trim().min(1, "이름을 입력해 주세요").max(80),
@@ -49,15 +49,18 @@ export function ContactForm({ variant = "dark" }: { variant?: "dark" | "light" }
     }
     setErrors({});
     setStatus("submitting");
-    const { error } = await supabase.from("contact_submissions").insert({
-      name: parsed.data.name,
-      phone: parsed.data.phone,
-      store_name: parsed.data.store_name || null,
-      industry: parsed.data.industry || null,
-      message: parsed.data.message || null,
-      source: "landing",
-    });
-    if (error) {
+    try {
+      await submitContactFn({
+        data: {
+          name: parsed.data.name,
+          phone: parsed.data.phone,
+          store_name: parsed.data.store_name || undefined,
+          industry: parsed.data.industry || undefined,
+          message: parsed.data.message || undefined,
+          source: "landing",
+        },
+      });
+    } catch {
       setStatus("error");
       setServerError("전송에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       return;

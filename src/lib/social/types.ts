@@ -1,4 +1,4 @@
-import type { Json } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/neon/supabase-compat.server";
 
 export type SocialPlatform =
   | "instagram"

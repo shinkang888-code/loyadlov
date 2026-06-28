@@ -1,10 +1,8 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Json } from "@/integrations/supabase/types";
-
-type SB = SupabaseClient<Database>;
+import type { NeonDbClient } from "@/integrations/neon/supabase-compat.server";
+import type { Json } from "@/integrations/neon/supabase-compat.server";
 
 export async function logActivity(
-  supabase: SB,
+  db: NeonDbClient,
   params: {
     actorId: string;
     storeCode: string;
@@ -12,10 +10,10 @@ export async function logActivity(
     resourceType: string;
     resourceId?: string;
     metadata?: Record<string, unknown>;
-  }
+  },
 ): Promise<void> {
   try {
-    await supabase.from("activity_audit").insert({
+    await db.from("activity_audit").insert({
       actor_id: params.actorId,
       store_code: params.storeCode,
       action: params.action,

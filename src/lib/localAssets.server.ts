@@ -1,8 +1,7 @@
 // filepath: src/lib/localAssets.server.ts
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { resolveRequestedStoreCode } from "@/lib/storeContext.server";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import type { NeonDbClient } from "@/integrations/neon/supabase-compat.server";
 
 export const LOCAL_ASSETS_CONFIG_KEY = "local_assets_config";
 
@@ -121,11 +120,11 @@ export async function resolveStoreRoot(storeCode: string): Promise<string> {
 }
 
 export async function resolveStoreRootForUser(
-  supabase: SupabaseClient<Database>,
+  db: NeonDbClient,
   userId: string,
-  storeCode?: string | null
+  storeCode?: string | null,
 ): Promise<string> {
-  const code = await resolveRequestedStoreCode(supabase, userId, storeCode);
+  const code = await resolveRequestedStoreCode(db, userId, storeCode);
   return resolveStoreRoot(code);
 }
 

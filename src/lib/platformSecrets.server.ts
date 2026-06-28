@@ -132,7 +132,7 @@ export async function resolveAppUrl(fallback?: string): Promise<string> {
     (await resolvePlatformSecret("appUrl")) ||
     pickEnv("APP_URL") ||
     fallback?.replace(/\/$/, "") ||
-    "https://loyadbeta.vercel.app"
+    "https://loyadlov.vercel.app"
   );
 }
 
@@ -175,7 +175,7 @@ export async function syncEncryptionKeyCache(): Promise<void> {
   const key =
     (await resolvePlatformSecret("socialTokenEncryptionKey")) ||
     pickEnv("SESSION_SECRET") ||
-    pickEnv("SUPABASE_URL") ||
+    pickEnv("DATABASE_URL") ||
     "loyad-social-token-dev-key";
   setEncryptionKeyOverride(key);
 }
