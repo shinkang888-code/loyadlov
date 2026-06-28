@@ -24,18 +24,32 @@ function extractNeonAuthCookies(headers: Headers): string {
   return parts.join("; ");
 }
 
-/** Neon Auth Set-Cookie → 앱 도메인용 (Domain 제거, SameSite=Lax) */
+/** Neon Auth Set-Cookie → 1st-party (SameSite=Lax, Partitioned 제거) */
 function rewriteSetCookie(raw: string): string {
-  const parts = raw
-    .split(";")
-    .map((p) => p.trim())
-    .filter((p) => p && !/^Domain=/i.test(p));
+  const kept: string[] = [];
+  let pair = "";
 
-  const hasPath = parts.some((p) => /^Path=/i.test(p));
-  const hasSameSite = parts.some((p) => /^SameSite=/i.test(p));
-  if (!hasPath) parts.push("Path=/");
-  if (!hasSameSite) parts.push("SameSite=Lax");
+  for (const part of raw.split(";")) {
+    const p = part.trim();
+    if (!p) continue;
+    if (/^Domain=/i.test(p)) continue;
+    if (/^SameSite=/i.test(p)) continue;
+    if (/^Partitioned$/i.test(p)) continue;
+    if (!pair) {
+      pair = p;
+      continue;
+    }
+    if (/^Path=/i.test(p)) continue;
+    kept.push(p);
+  }
 
+  const parts = [
+    pair,
+    ...kept.filter((p) => !/^Secure$/i.test(p)),
+    "Path=/",
+    "Secure",
+    "SameSite=Lax",
+  ];
   return parts.join("; ");
 }
 
