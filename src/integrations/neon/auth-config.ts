@@ -37,3 +37,11 @@ export function getAuthCallbackUrl(path = "/admin"): string {
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${getAppOrigin()}${normalized}`;
 }
+
+/** 브라우저 Auth 클라이언트 — same-origin 프록시 (3rd-party 쿠키 회피) */
+export function getNeonAuthClientUrl(): string {
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/api/auth`;
+  }
+  return `${getAppOrigin()}/api/auth`;
+}

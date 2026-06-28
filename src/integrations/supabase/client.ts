@@ -1,9 +1,9 @@
 import { createAuthClient } from "@neondatabase/auth";
 import { SupabaseAuthAdapter } from "@neondatabase/auth/vanilla/adapters";
-import { getNeonAuthUrl } from "@/integrations/neon/auth-config";
+import { getNeonAuthClientUrl } from "@/integrations/neon/auth-config";
 
 function createNeonAuthClient() {
-  return createAuthClient(getNeonAuthUrl(), {
+  return createAuthClient(getNeonAuthClientUrl(), {
     adapter: SupabaseAuthAdapter(),
   });
 }
@@ -34,4 +34,10 @@ export const supabase = {
   },
 };
 
-export { getNeonAuthUrl, getAppOrigin, getAuthCallbackUrl, NEON_AUTH_JWKS_URL } from "@/integrations/neon/auth-config";
+export {
+  getNeonAuthUrl,
+  getNeonAuthClientUrl,
+  getAppOrigin,
+  getAuthCallbackUrl,
+  NEON_AUTH_JWKS_URL,
+} from "@/integrations/neon/auth-config";
